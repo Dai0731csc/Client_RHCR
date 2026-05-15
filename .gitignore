@@ -10,7 +10,7 @@ __pycache__/
 *.jsonl
 
 # Local TLS material
-config
+config/*.pem
 
 # macOS / editor noise
 .vscode/

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "ip": "192.168.0.42",
+  "region": "unknown",
+  "first_seen_at": null,
+  "last_seen_at": "2026-05-15T18:54:48Z",
+  "camera_calibration": {
+    "success": true,
+    "board_type": "chessboard",
+    "board_rows": 6,
+    "board_cols": 9,
+    "square_size_mm": 20.0,
+    "image_width": 480,
+    "image_height": 640,
+    "valid_image_count": 15,
+    "total_image_count": 15,
+    "rms": 2.4127805592482954,
+    "reprojection_error": 2.4127802935351057,
+    "intrinsics": {
+      "fx": 473.8133620697814,
+      "fy": 469.80983805384994,
+      "cx": 230.19420021267885,
+      "cy": 315.40341003918314
+    },
+    "camera_matrix": [
+      [
+        473.8133620697814,
+        0.0,
+        230.19420021267885
+      ],
+      [
+        0.0,
+        469.80983805384994,
+        315.40341003918314
+      ],
+      [
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "dist_coeffs": [
+      0.6037754274144382,
+      -5.486455122912838,
+      -0.005062897288971273,
+      -0.0028890242395184684,
+      15.18579334560224
+    ],
+    "failed_images": [],
+    "camera_settings": {
+      "aspectRatio": 0.75,
+      "backgroundBlur": false,
+      "deviceId": "BDB3699C1214B166D199CAC72D7D7F70C610A605",
+      "facingMode": "environment",
+      "frameRate": 30,
+      "groupId": "E8289C2A41063D07885A32F93938266F91DB4C46",
+      "height": 640,
+      "powerEfficient": false,
+      "torch": false,
+      "whiteBalanceMode": "continuous",
+      "width": 480,
+      "zoom": 1
+    },
+    "captured_at": "2026-05-15T21:43:38"
+  },
+  "camera_calibration_updated_at": "2026-05-15T18:43:38Z"
+}
