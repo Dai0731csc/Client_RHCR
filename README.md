@@ -10,7 +10,7 @@ Current goals:
 
 ## Directory structure
 
-- `main.py`: starts the HTTPS + WSS server, optionally with `ngrok`
+- `main.py`: starts the HTTPS + WSS server
 - `backend/app.py`: routes for pages, WebSocket, HTTP APIs, and static assets
 - `backend/config.py`: ports, TLS, and ICE config
 - `backend/ws_handlers.py`: AprilTag realtime ingestion (WebSocket)

@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import (
+    CLOUD_BASE_URL,
     RELAY_RECONNECT_DELAY_S,
     RELAY_SESSION_ID,
     RELAY_TOKEN,
@@ -73,7 +74,7 @@ async def start_master_relay(app):
 
     _log(
         f"[{datetime.now().strftime('%H:%M:%S')}] master relay connected to {RELAY_URL} "
-        f"(session={RELAY_SESSION_ID})"
+        f"(cloud={CLOUD_BASE_URL}, session={RELAY_SESSION_ID})"
     )
 
 

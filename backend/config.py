@@ -15,8 +15,22 @@ MASTER_UDP_MAX_PACKET_BYTES = int(os.getenv("MASTER_UDP_MAX_PACKET_BYTES", "6550
 GRIPPER_SERVICE_HOST = os.getenv("GRIPPER_SERVICE_HOST", "127.0.0.1")
 GRIPPER_SERVICE_PORT = int(os.getenv("GRIPPER_SERVICE_PORT", "9002"))
 
-TRANSPORT_MODE = os.getenv("TRANSPORT_MODE", "udp").strip().lower()
-RELAY_URL = os.getenv("RELAY_URL", "wss://86.50.169.179:8443/relay")
+CLOUD_BASE_URL = os.getenv("CLOUD_BASE_URL", "http://86.50.169.179:8443").rstrip("/")
+
+
+def relay_url_from_cloud_base(base_url: str) -> str:
+    base = base_url.rstrip("/")
+    if base.startswith("https://"):
+        return base.replace("https://", "wss://", 1) + "/relay"
+    if base.startswith("http://"):
+        return base.replace("http://", "ws://", 1) + "/relay"
+    if base.startswith(("ws://", "wss://")):
+        return base if base.endswith("/relay") else f"{base}/relay"
+    return f"ws://{base}/relay"
+
+
+TRANSPORT_MODE = os.getenv("TRANSPORT_MODE", "relay").strip().lower()
+RELAY_URL = os.getenv("RELAY_URL", relay_url_from_cloud_base(CLOUD_BASE_URL))
 RELAY_SESSION_ID = os.getenv("RELAY_SESSION_ID", "default")
 RELAY_TOKEN = os.getenv("RELAY_TOKEN", "")
 RELAY_RECONNECT_DELAY_S = float(os.getenv("RELAY_RECONNECT_DELAY_S", "2.0"))
