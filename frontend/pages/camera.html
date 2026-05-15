@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Camera Test</title>
+  <link rel="stylesheet" href="{{ static_url_prefix }}/css/camera.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="page-hero">
+      <div class="hero-toolbar">
+        <h2>Viewfinder</h2>
+        <section class="controls controls-primary">
+          <button id="openCameraBtn" class="secondary icon-button" type="button" aria-label="Open rear camera" title="Open rear camera"></button>
+          <button id="cameraCalibrationBtn" class="secondary icon-button" type="button" aria-label="Camera calibration" title="Camera calibration" disabled></button>
+          <button id="timeSyncBtn" class="secondary icon-button" type="button" aria-label="Time sync" title="Time sync" disabled></button>
+          <button id="calibrateBtn" class="secondary icon-button" type="button" aria-label="Initial calibration" title="Initial calibration" disabled></button>
+          <button id="detectTagBtn" class="secondary icon-button" type="button" aria-label="Start continuous detection" title="Start continuous detection" disabled></button>
+          <button id="gripperToggleBtn" class="secondary icon-button" type="button" aria-label="Open gripper" title="Open gripper"></button>
+        </section>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <section class="stage-panel">
+        <section id="previewPanel" class="preview-panel">
+          <div id="previewStage" class="preview-stage">
+            <video id="video" autoplay muted playsinline></video>
+            <canvas id="overlayCanvas" class="overlay-canvas" aria-hidden="true"></canvas>
+            <div class="preview-calibration-overlay">
+              <div class="preview-calibration-chip">
+                <span>Camera calibration</span>
+                <strong id="previewCalibrationCounter">0 / 15</strong>
+              </div>
+              <div class="preview-progress-track">
+                <div id="previewCalibrationProgressBar" class="preview-progress-bar"></div>
+              </div>
+              <div class="preview-calibration-actions">
+                <button
+                  id="previewCaptureCalibrationBtn"
+                  class="primary floating-action-button"
+                  type="button"
+                  aria-label="Capture calibration frame"
+                  title="Capture calibration frame"
+                  hidden
+                ></button>
+                <button
+                  id="previewUploadCalibrationBtn"
+                  class="primary floating-action-button"
+                  type="button"
+                  aria-label="Upload and compute intrinsics"
+                  title="Upload and compute intrinsics"
+                  hidden
+                ></button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    window.CameraPageConfig = {
+      basePath: {{ base_path|tojson }},
+      hubPath: {{ hub_path|tojson }}
+    };
+  </script>
+  <script src="{{ static_url_prefix }}/vendor/apriltag/apriltag_wasm.js"></script>
+  <script src="{{ static_url_prefix }}/vendor/gl-matrix/gl-matrix-min.js"></script>
+  <script src="{{ static_url_prefix }}/vendor/zod/index.umd.min.js"></script>
+  <script src="{{ static_url_prefix }}/js/shared/time_sync.js"></script>
+  <script src="{{ static_url_prefix }}/js/apriltag_detector.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_state.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_ui.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_pose.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_transport_payloads.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_transport_realtime.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_transport_timesync.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_transport_calibration.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_calibration.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_gripper.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera_stream.js"></script>
+  <script src="{{ static_url_prefix }}/js/camera.js"></script>
+</body>
+</html>

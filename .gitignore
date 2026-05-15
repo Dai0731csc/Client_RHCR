@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local analysis output
+*.log
+*.jsonl
+
+# Local TLS material
+config
+
+# macOS / editor noise
+.vscode/
