@@ -1,0 +1,70 @@
+# Client Install
+
+This folder contains the bootstrap scripts for a fresh machine.
+
+## Quick start
+
+macOS / Linux:
+
+```bash
+./install/unix/bootstrap_client.sh
+```
+
+The script asks whether to create a `Python 3.11` virtual environment.
+- Answer `yes`: create and use `client/.venv`
+- Answer `no`: skip `.venv` and install with `python3.11` directly
+
+Windows PowerShell:
+
+```powershell
+.\install\windows\bootstrap_client.ps1
+```
+
+If PowerShell blocks local scripts, run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install\windows\bootstrap_client.ps1
+```
+
+Verify the environment:
+
+```bash
+./install/unix/verify_client.sh
+```
+
+```powershell
+.\install\windows\verify_client.ps1
+```
+
+Run the client:
+
+```bash
+.venv/bin/python main.py
+```
+
+```powershell
+.\.venv\Scripts\python.exe main.py
+```
+
+If you answered `no`, run:
+
+```bash
+python3.11 main.py
+```
+
+```powershell
+py -3.11 main.py
+```
+
+## What the bootstrap script does
+
+- Creates `client/.venv` when you answer `yes`
+- Installs `install/requirements.txt`
+- Generates `config/cert.pem` and `config/key.pem` if needed
+- Uses one shared Unix implementation for macOS and Linux
+
+## Notes
+
+- `cloud.json` is intentionally not created or validated by these scripts.
+- Before first real run, place the provided cloud configuration at `config/cloud.json`.
+- Use `--force-cert` if you want to replace existing TLS files.

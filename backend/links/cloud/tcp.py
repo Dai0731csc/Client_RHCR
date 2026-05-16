@@ -7,6 +7,9 @@ from ...config import (
     RELAY_SESSION_ID,
     RELAY_TOKEN,
     RELAY_URL,
+    TLS_CA_FILE,
+    TLS_VERIFY,
+    TRANSPORT_MODE,
     use_relay_ws_transport,
 )
 from ...state import MASTER_CLOUD_PUMP_TASK_KEY, MASTER_CLOUD_TRANSPORT_KEY
@@ -17,6 +20,7 @@ from ..pose_protocol import (
     handle_slave_control_message,
     remove_slave_peer,
 )
+from .protocol import STREAM_CLOSED_INTERNAL_TYPE
 from .ws_client import CloudWsClient
 
 
@@ -30,6 +34,9 @@ async def _tcp_inbound_pump(app, cloud_client: CloudWsClient) -> None:
     try:
         async for payload in cloud_client.iter_payloads():
             message_type = payload.get("type")
+            if message_type == STREAM_CLOSED_INTERNAL_TYPE:
+                remove_slave_peer(app, CLOUD_PEER_KEY, reason="cloud_tcp_closed")
+                continue
             if message_type == SLAVE_UNSUBSCRIBE_MESSAGE_TYPE:
                 remove_slave_peer(app, CLOUD_PEER_KEY, reason="unsubscribe")
                 continue
@@ -44,7 +51,7 @@ async def _tcp_inbound_pump(app, cloud_client: CloudWsClient) -> None:
     except asyncio.CancelledError:
         raise
     finally:
-        remove_slave_peer(app, CLOUD_PEER_KEY, reason="cloud_tcp_closed")
+        remove_slave_peer(app, CLOUD_PEER_KEY, reason="cloud_tcp_pump_stopped")
 
 
 async def start_cloud_tcp(app) -> None:
@@ -58,6 +65,9 @@ async def start_cloud_tcp(app) -> None:
         token=RELAY_TOKEN,
         reconnect_delay_s=RELAY_RECONNECT_DELAY_S,
         label="TeleProgram",
+        metadata={"transport_mode": TRANSPORT_MODE},
+        tls_verify=TLS_VERIFY,
+        tls_ca_file=TLS_CA_FILE,
     )
     await cloud_client.connect()
     app[MASTER_CLOUD_TRANSPORT_KEY] = cloud_client

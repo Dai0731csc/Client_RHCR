@@ -23,7 +23,7 @@ All messages include:
 
 ```json
 {
-  "protocol": "robotic-haircutting.raw-pose-stream.v1"
+  "protocol": "rhcr-oulu.raw-pose-stream"
 }
 ```
 
@@ -36,7 +36,7 @@ Subscribe to the raw pose stream.
 ```json
 {
   "type": "slave_subscribe",
-  "protocol": "robotic-haircutting.raw-pose-stream.v1",
+  "protocol": "rhcr-oulu.raw-pose-stream",
   "client_time": "2026-04-23T10:00:00.000Z",
   "client_label": "control_AT",
   "tracked_tag_id": 0,
@@ -56,7 +56,7 @@ Fields:
 ```json
 {
   "type": "slave_unsubscribe",
-  "protocol": "robotic-haircutting.raw-pose-stream.v1",
+  "protocol": "rhcr-oulu.raw-pose-stream",
   "client_time": "2026-04-23T10:00:05.000Z"
 }
 ```
@@ -70,7 +70,7 @@ Returned after the subscription is established.
 ```json
 {
   "type": "master_stream_ready",
-  "protocol": "robotic-haircutting.raw-pose-stream.v1",
+  "protocol": "rhcr-oulu.raw-pose-stream",
   "server_time": "2026-04-23T10:00:00.010Z",
   "transport": "udp",
   "has_detection_state": true,
@@ -86,7 +86,7 @@ Indicates whether vision detection is currently active.
 ```json
 {
   "type": "detection_state",
-  "protocol": "robotic-haircutting.raw-pose-stream.v1",
+  "protocol": "rhcr-oulu.raw-pose-stream",
   "transport": "udp",
   "master_seq": 101,
   "active": true,
@@ -110,7 +110,7 @@ The initial reference pose used by the control side for relative pose computatio
 ```json
 {
   "type": "initial_calibration",
-  "protocol": "robotic-haircutting.raw-pose-stream.v1",
+  "protocol": "rhcr-oulu.raw-pose-stream",
   "transport": "udp",
   "master_seq": 102,
   "tag_id": 0,
@@ -144,7 +144,7 @@ The core raw pose message. The control side should read `pose.t` and `pose.R` di
 ```json
 {
   "type": "apriltag_detections",
-  "protocol": "robotic-haircutting.raw-pose-stream.v1",
+  "protocol": "rhcr-oulu.raw-pose-stream",
   "transport": "udp",
   "master_seq": 103,
   "client_seq": 42,

@@ -27,6 +27,21 @@ TRANSPORT_MODE_ALIASES = {
 }
 
 
+def _as_bool(value, *, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
 def _load_cloud_file() -> dict:
     if not CLOUD_CONFIG_PATH.exists():
         return {}
@@ -55,6 +70,16 @@ def _cfg(key: str, default):
     return default
 
 
+def _config_path(key: str) -> str:
+    raw = str(_cloud_top(key) or "").strip()
+    if not raw:
+        return ""
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = CONFIG_DIR / path
+    return str(path.resolve())
+
+
 def _webrtc_scalar(key: str, default: str = "") -> str:
     webrtc = _CLOUD_FILE.get("webrtc")
     if not isinstance(webrtc, dict):
@@ -80,7 +105,10 @@ _cloud_tcp_port = int(_cloud_top("cloud_tcp_port"))
 _cloud_udp_port = int(_cloud_top("cloud_udp_port"))
 _cloud_tls_raw = _CLOUD_FILE.get("cloud_use_tls")
 # 默认 HTTPS/WSS；JSON 不写该键等价 true；明文调试设 ``cloud_use_tls: false``
-_cloud_use_tls = True if _cloud_tls_raw is None else bool(_cloud_tls_raw)
+_cloud_use_tls = _as_bool(_cloud_tls_raw, default=True)
+_cloud_tls_verify_raw = _CLOUD_FILE.get("tls_verify")
+TLS_VERIFY = _as_bool(_cloud_tls_verify_raw, default=True)
+TLS_CA_FILE = _config_path("tls_ca_file")
 
 # relay：cloud_tcp / local_tcp → 拼 https/wss 或 http/ws（与 ``cloud_use_tls`` 一致）
 _ws_host = _cloud_host

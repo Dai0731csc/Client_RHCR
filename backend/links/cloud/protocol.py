@@ -9,3 +9,5 @@ RELAY_ACTION_ERROR = "error"
 
 RELAY_ROLE_MASTER = "master"
 RELAY_ROLE_SLAVE = "slave"
+
+STREAM_CLOSED_INTERNAL_TYPE = "_stream_closed"

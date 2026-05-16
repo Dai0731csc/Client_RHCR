@@ -2,6 +2,8 @@
   "cloud_host": "86.50.169.179",
   "cloud_tcp_port": 8443,
   "cloud_use_tls": true,
+  "tls_verify": true,
+  "tls_ca_file": "ca.crt",
   "cloud_udp_port": 8440,
   "transport_mode": "cloud_tcp",
   "session_id": "default",

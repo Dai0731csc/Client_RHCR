@@ -5,7 +5,7 @@ from datetime import datetime
 from ..state import MASTER_SLAVE_PEERS_KEY, MASTER_UDP_SEQUENCE_KEY
 from ..utils import with_server_send_time
 
-MASTER_STREAM_PROTOCOL = "robotic-haircutting.raw-pose-stream.v1"
+MASTER_STREAM_PROTOCOL = "rhcr-oulu.raw-pose-stream"
 SLAVE_SUBSCRIBE_MESSAGE_TYPE = "slave_subscribe"
 SLAVE_UNSUBSCRIBE_MESSAGE_TYPE = "slave_unsubscribe"
 MASTER_STREAM_READY_MESSAGE_TYPE = "master_stream_ready"

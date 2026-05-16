@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
+.venv/
 .DS_Store
 
 # Jupyter
@@ -10,7 +11,9 @@ __pycache__/
 *.jsonl
 
 # Local TLS material
-config/*.pem
+config
 
 # macOS / editor noise
 .vscode/
+
+backend/data/devices

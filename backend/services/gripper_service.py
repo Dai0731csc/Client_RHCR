@@ -8,7 +8,7 @@ from ..links import get_links
 from ..models import GripperCommandPayload, GripperDispatchResult
 from ..utils import current_utc_iso_timestamp
 
-GRIPPER_PROTOCOL = "master-slave.gripper.v1"
+GRIPPER_PROTOCOL = "rhcr-oulu.gripper"
 GRIPPER_COMMAND_MESSAGE_TYPE = "gripper_command"
 GRIPPER_ALLOWED_ACTIONS = {"open", "close"}
 
