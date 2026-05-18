@@ -8,6 +8,7 @@ MASTER_UDP_PROTOCOL_KEY = "master_udp_protocol"
 MASTER_UDP_SEQUENCE_KEY = "master_udp_sequence"
 MASTER_CLOUD_TRANSPORT_KEY = "master_cloud_transport"
 MASTER_CLOUD_PUMP_TASK_KEY = "master_cloud_pump_task"
+MASTER_LOCAL_RELAY_PEERS_KEY = "master_local_relay_peers"
 WEBRTC_PEER_CONNECTIONS_KEY = "webrtc_peer_connections"
 
 APP_STATE_DEFAULTS = {
@@ -21,6 +22,7 @@ APP_STATE_DEFAULTS = {
     MASTER_UDP_SEQUENCE_KEY: 0,
     MASTER_CLOUD_TRANSPORT_KEY: None,
     MASTER_CLOUD_PUMP_TASK_KEY: None,
+    MASTER_LOCAL_RELAY_PEERS_KEY: dict,
     WEBRTC_PEER_CONNECTIONS_KEY: set,
 }
 

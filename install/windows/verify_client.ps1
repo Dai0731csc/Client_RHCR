@@ -87,8 +87,9 @@ try {
 
     Write-Host "Checking TLS files"
     foreach ($Path in @(
-        (Join-Path $ClientRoot "config\cert.pem"),
-        (Join-Path $ClientRoot "config\key.pem")
+        (Join-Path $ClientRoot "config\certificate\local\ca.crt"),
+        (Join-Path $ClientRoot "config\certificate\local\cert.pem"),
+        (Join-Path $ClientRoot "config\certificate\local\key.pem")
     )) {
         if (-not (Test-Path $Path)) {
             throw "Missing TLS file: $Path"
@@ -102,6 +103,18 @@ try {
         (Join-Path $ClientRoot "main.py"),
         (Join-Path $ClientRoot "backend")
     )
+
+    Write-Host "Checking application import"
+    Push-Location $ClientRoot
+    try {
+        Invoke-CommandArray -Command $PythonCommand -Arguments @(
+            "-c",
+            "from backend import create_app; create_app(); print('[ok] create_app')"
+        )
+    }
+    finally {
+        Pop-Location
+    }
 }
 finally {
     if (Test-Path $VerifyScript) {

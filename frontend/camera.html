@@ -10,7 +10,10 @@
   <main class="app">
     <header class="page-hero">
       <div class="hero-toolbar">
-        <h2>Viewfinder</h2>
+        <div class="hero-title-row">
+          <h2>Viewfinder</h2>
+          <a class="settings-link" href="{{ base_path }}/settings">Settings</a>
+        </div>
         <section class="controls controls-primary">
           <button id="openCameraBtn" class="secondary icon-button" type="button" aria-label="Open rear camera" title="Open rear camera"></button>
           <button id="cameraCalibrationBtn" class="secondary icon-button" type="button" aria-label="Camera calibration" title="Camera calibration" disabled></button>
@@ -63,8 +66,7 @@
 
   <script>
     window.CameraPageConfig = {
-      basePath: {{ base_path|tojson }},
-      hubPath: {{ hub_path|tojson }}
+      basePath: {{ base_path|tojson }}
     };
   </script>
   <script src="{{ static_url_prefix }}/vendor/apriltag/apriltag_wasm.js"></script>

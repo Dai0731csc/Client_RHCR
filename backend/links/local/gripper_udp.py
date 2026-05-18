@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import datetime
 
-from ...config import GRIPPER_SERVICE_HOST, GRIPPER_SERVICE_PORT
+from ...config import get_gripper_service_host, get_gripper_service_port
 from ...state import GRIPPER_COMMAND_TRANSPORT_KEY
 
 
@@ -53,6 +53,6 @@ def send_gripper_command(app, command_payload: dict) -> bool:
         return False
     transport.sendto(
         json.dumps(command_payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8"),
-        (GRIPPER_SERVICE_HOST, GRIPPER_SERVICE_PORT),
+        (get_gripper_service_host(), get_gripper_service_port()),
     )
     return True

@@ -37,10 +37,27 @@ body {
   gap: 10px;
 }
 
+.hero-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .hero-toolbar h2 {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
+}
+
+.settings-link {
+  color: #1a5fb4;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.settings-link:hover {
+  text-decoration: underline;
 }
 
 .workspace {

@@ -11,12 +11,16 @@ from ...routers import (
     build_template_context,
     calibration_publish_websocket_handler,
     camera_page,
+    settings_page,
+    settings_get_handler,
+    settings_update_handler,
     camera_calibration_handler,
     camera_calibration_validate_handler,
     close_webrtc_peers,
     device_profile_by_ip_handler,
     device_profile_handler,
     gripper_command_handler,
+    local_relay_websocket_handler,
     webrtc_config_handler,
     webrtc_signaling_websocket_handler,
 )
@@ -25,14 +29,18 @@ from ...routers import (
 class FrontendLink:
     name = "frontend"
 
-    def register_routes(self, app: web.Application, *, base_path: str = "", hub_path: str = "/") -> None:
-        app["template_context"] = build_template_context(base_path=base_path, hub_path=hub_path)
+    def register_routes(self, app: web.Application, *, base_path: str = "") -> None:
+        app["template_context"] = build_template_context(base_path=base_path)
         app["jinja"] = Environment(loader=FileSystemLoader(str(Path(PAGES_DIR))))
 
         app.router.add_get("/", camera_page)
+        app.router.add_get("/settings", settings_page)
+        app.router.add_get("/api/settings", settings_get_handler)
+        app.router.add_post("/api/settings", settings_update_handler)
         app.router.add_get("/ws/webrtc", webrtc_signaling_websocket_handler)
         app.router.add_get("/ws/publish", apriltag_publish_websocket_handler)
         app.router.add_get("/ws/calibration/publish", calibration_publish_websocket_handler)
+        app.router.add_get("/relay", local_relay_websocket_handler)
         app.router.add_get("/api/device-profile", device_profile_handler)
         app.router.add_get("/api/device-profile/{ip}", device_profile_by_ip_handler)
         app.router.add_get("/api/webrtc/config", webrtc_config_handler)

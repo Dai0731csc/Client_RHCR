@@ -15,7 +15,7 @@ Usage: ./install/unix/bootstrap_client.sh [options]
 Options:
   --python PATH      Python executable to use
   --venv yes|no      Create a Python 3.11 virtual environment or skip it
-  --force-cert       Regenerate cert.pem and key.pem even if they exist
+  --force-cert       Regenerate local relay TLS files even if they exist
   -h, --help         Show this help message
 EOF
 }

@@ -10,8 +10,11 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ClientRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
 $ConfigDir = Join-Path $ClientRoot "config"
-$CertPath = Join-Path $ConfigDir "cert.pem"
-$KeyPath = Join-Path $ConfigDir "key.pem"
+$CertDir = Join-Path $ConfigDir "certificate\local"
+$CaCertPath = Join-Path $CertDir "ca.crt"
+$CaKeyPath = Join-Path $CertDir "ca.key"
+$CertPath = Join-Path $CertDir "cert.pem"
+$KeyPath = Join-Path $CertDir "key.pem"
 
 function Invoke-CommandArray {
     param(
@@ -32,12 +35,12 @@ function Invoke-CommandArray {
     }
 }
 
-if ((-not $Force) -and (Test-Path $CertPath) -and (Test-Path $KeyPath)) {
-    Write-Host "TLS files already exist, keeping current cert.pem and key.pem"
+if ((-not $Force) -and (Test-Path $CaCertPath) -and (Test-Path $CertPath) -and (Test-Path $KeyPath)) {
+    Write-Host "TLS files already exist, keeping current local CA and relay certificate"
     exit 0
 }
 
-New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+New-Item -ItemType Directory -Force -Path $CertDir | Out-Null
 
 $HostNameValue = [System.Net.Dns]::GetHostName()
 $ShortHostName = $HostNameValue.Split(".")[0]
@@ -59,14 +62,47 @@ except ModuleNotFoundError as error:
         "Install dependencies first."
     ) from error
 
-cert_path = pathlib.Path(sys.argv[1])
-key_path = pathlib.Path(sys.argv[2])
-hostname = sys.argv[3]
-short_hostname = sys.argv[4]
+ca_cert_path = pathlib.Path(sys.argv[1])
+ca_key_path = pathlib.Path(sys.argv[2])
+cert_path = pathlib.Path(sys.argv[3])
+key_path = pathlib.Path(sys.argv[4])
+hostname = sys.argv[5]
+short_hostname = sys.argv[6]
+
+ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+ca_subject = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "RHCR Local Relay CA"),
+])
+
+ca_certificate = (
+    x509.CertificateBuilder()
+    .subject_name(ca_subject)
+    .issuer_name(ca_subject)
+    .public_key(ca_key.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(datetime.datetime.utcnow() - datetime.timedelta(minutes=5))
+    .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=825))
+    .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+    .add_extension(
+        x509.KeyUsage(
+            digital_signature=True,
+            content_commitment=False,
+            key_encipherment=False,
+            data_encipherment=False,
+            key_agreement=False,
+            key_cert_sign=True,
+            crl_sign=True,
+            encipher_only=False,
+            decipher_only=False,
+        ),
+        critical=True,
+    )
+    .sign(private_key=ca_key, algorithm=hashes.SHA256())
+)
 
 key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-subject = issuer = x509.Name([
-    x509.NameAttribute(NameOID.COMMON_NAME, hostname),
+subject = x509.Name([
+    x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
 ])
 sans = [
     x509.DNSName("localhost"),
@@ -79,13 +115,13 @@ sans = [
 certificate = (
     x509.CertificateBuilder()
     .subject_name(subject)
-    .issuer_name(issuer)
+    .issuer_name(ca_subject)
     .public_key(key.public_key())
     .serial_number(x509.random_serial_number())
     .not_valid_before(datetime.datetime.utcnow() - datetime.timedelta(minutes=5))
     .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=825))
     .add_extension(x509.SubjectAlternativeName(sans), critical=False)
-    .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+    .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
     .add_extension(
         x509.KeyUsage(
             digital_signature=True,
@@ -93,7 +129,7 @@ certificate = (
             key_encipherment=True,
             data_encipherment=False,
             key_agreement=False,
-            key_cert_sign=True,
+            key_cert_sign=False,
             crl_sign=False,
             encipher_only=False,
             decipher_only=False,
@@ -104,9 +140,17 @@ certificate = (
         x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),
         critical=False,
     )
-    .sign(private_key=key, algorithm=hashes.SHA256())
+    .sign(private_key=ca_key, algorithm=hashes.SHA256())
 )
 
+ca_cert_path.write_bytes(ca_certificate.public_bytes(serialization.Encoding.PEM))
+ca_key_path.write_bytes(
+    ca_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+)
 cert_path.write_bytes(certificate.public_bytes(serialization.Encoding.PEM))
 key_path.write_bytes(
     key.private_bytes(
@@ -126,6 +170,8 @@ try {
     Set-Content -Path $PythonScript -Value $PythonCode -Encoding UTF8
     Invoke-CommandArray -Command $PythonCommand -Arguments @(
         $PythonScript,
+        $CaCertPath,
+        $CaKeyPath,
         $CertPath,
         $KeyPath,
         $HostNameValue,
@@ -138,4 +184,4 @@ finally {
     }
 }
 
-Write-Host "Generated $CertPath and $KeyPath"
+Write-Host "Generated $CaCertPath, $CertPath, and $KeyPath"

@@ -2,7 +2,7 @@ import asyncio
 import json
 from datetime import datetime
 
-from ...config import MASTER_UDP_HOST, MASTER_UDP_PORT
+from ...config import get_master_udp_host, get_master_udp_port
 from ...state import (
     MASTER_SLAVE_PEERS_KEY,
     MASTER_UDP_PROTOCOL_KEY,
@@ -104,7 +104,7 @@ async def start_local_master_udp(app) -> None:
     loop = asyncio.get_running_loop()
     transport, protocol = await loop.create_datagram_endpoint(
         lambda: LocalMasterUdpProtocol(app),
-        local_addr=(MASTER_UDP_HOST, MASTER_UDP_PORT),
+        local_addr=(get_master_udp_host(), get_master_udp_port()),
     )
     app[MASTER_UDP_TRANSPORT_KEY] = transport
     app[MASTER_UDP_PROTOCOL_KEY] = protocol

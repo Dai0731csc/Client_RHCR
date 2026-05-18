@@ -3,13 +3,13 @@ import json
 from datetime import datetime
 
 from ...config import (
-    CLOUD_BASE_URL,
-    CLOUD_UDP_HOST,
-    CLOUD_UDP_PORT,
-    RELAY_SESSION_ID,
-    RELAY_TOKEN,
+    get_cloud_udp_host,
+    get_cloud_udp_port,
+    get_relay_session_id,
+    get_relay_token,
     use_cloud_udp_transport,
 )
+from ...runtime_settings import get_runtime_settings
 from ...state import MASTER_CLOUD_PUMP_TASK_KEY, MASTER_CLOUD_TRANSPORT_KEY
 from ..pose_protocol import (
     CLOUD_PEER_KEY,
@@ -158,21 +158,24 @@ async def start_cloud_udp(app) -> None:
     if not use_cloud_udp_transport():
         return
 
+    udp_host = get_cloud_udp_host()
+    udp_port = get_cloud_udp_port()
     cloud_client = CloudUdpClient(
-        host=CLOUD_UDP_HOST,
-        port=CLOUD_UDP_PORT,
+        host=udp_host,
+        port=udp_port,
         role="master",
-        session_id=RELAY_SESSION_ID,
-        token=RELAY_TOKEN,
+        session_id=get_relay_session_id(),
+        token=get_relay_token(),
         label="TeleProgram",
     )
     await cloud_client.connect()
     app[MASTER_CLOUD_TRANSPORT_KEY] = cloud_client
     app[MASTER_CLOUD_PUMP_TASK_KEY] = asyncio.create_task(_udp_inbound_pump(app, cloud_client))
 
+    settings = get_runtime_settings()
     _log(
         f"[{datetime.now().strftime('%H:%M:%S')}] [cloud] udp ready on "
-        f"udp://{CLOUD_UDP_HOST}:{CLOUD_UDP_PORT} (base={CLOUD_BASE_URL})"
+        f"udp://{udp_host}:{udp_port} (cloud_host={settings.cloud_host})"
     )
 
 

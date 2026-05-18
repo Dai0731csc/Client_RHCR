@@ -65,7 +65,10 @@ for name in bundled:
 PY
 
 echo "Checking TLS files"
-for path in "${CLIENT_ROOT}/config/cert.pem" "${CLIENT_ROOT}/config/key.pem"; do
+for path in \
+  "${CLIENT_ROOT}/config/certificate/local/ca.crt" \
+  "${CLIENT_ROOT}/config/certificate/local/cert.pem" \
+  "${CLIENT_ROOT}/config/certificate/local/key.pem"; do
   if [[ ! -f "${path}" ]]; then
     echo "Missing TLS file: ${path}" >&2
     exit 1
@@ -75,6 +78,12 @@ done
 
 echo "Compiling Python sources"
 "${ACTIVE_PYTHON}" -m compileall "${CLIENT_ROOT}/main.py" "${CLIENT_ROOT}/backend" >/dev/null
+
+echo "Checking application import"
+(
+  cd "${CLIENT_ROOT}"
+  "${ACTIVE_PYTHON}" -c "from backend import create_app; create_app(); print('[ok] create_app')"
+)
 
 echo
 echo "Environment verification complete."

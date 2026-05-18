@@ -2,16 +2,16 @@ import asyncio
 from datetime import datetime
 
 from ...config import (
-    CLOUD_BASE_URL,
-    RELAY_RECONNECT_DELAY_S,
-    RELAY_SESSION_ID,
-    RELAY_TOKEN,
-    RELAY_URL,
-    TLS_CA_FILE,
-    TLS_VERIFY,
-    TRANSPORT_MODE,
-    use_relay_ws_transport,
+    get_relay_reconnect_delay_s,
+    get_relay_session_id,
+    get_relay_token,
+    get_relay_url,
+    get_runtime_tls_ca_file,
+    get_runtime_tls_verify,
+    get_transport_mode,
+    use_cloud_tcp_transport,
 )
+from ...runtime_settings import get_runtime_settings
 from ...state import MASTER_CLOUD_PUMP_TASK_KEY, MASTER_CLOUD_TRANSPORT_KEY
 from ..pose_protocol import (
     CLOUD_PEER_KEY,
@@ -55,27 +55,34 @@ async def _tcp_inbound_pump(app, cloud_client: CloudWsClient) -> None:
 
 
 async def start_cloud_tcp(app) -> None:
-    if not use_relay_ws_transport():
+    if not use_cloud_tcp_transport():
         return
 
+    relay_url = get_relay_url()
+    settings = get_runtime_settings()
+    cloud_base_url = ""
+    if settings.cloud_host and settings.use_cloud_tcp_transport():
+        http_scheme = "https" if settings.cloud_use_tls else "http"
+        cloud_base_url = f"{http_scheme}://{settings.cloud_host}:{settings.cloud_tcp_port}"
+
     cloud_client = CloudWsClient(
-        url=RELAY_URL,
+        url=relay_url,
         role="master",
-        session_id=RELAY_SESSION_ID,
-        token=RELAY_TOKEN,
-        reconnect_delay_s=RELAY_RECONNECT_DELAY_S,
+        session_id=get_relay_session_id(),
+        token=get_relay_token(),
+        reconnect_delay_s=get_relay_reconnect_delay_s(),
         label="TeleProgram",
-        metadata={"transport_mode": TRANSPORT_MODE},
-        tls_verify=TLS_VERIFY,
-        tls_ca_file=TLS_CA_FILE,
+        metadata={"transport_mode": get_transport_mode()},
+        tls_verify=get_runtime_tls_verify(),
+        tls_ca_file=get_runtime_tls_ca_file(),
     )
     await cloud_client.connect()
     app[MASTER_CLOUD_TRANSPORT_KEY] = cloud_client
     app[MASTER_CLOUD_PUMP_TASK_KEY] = asyncio.create_task(_tcp_inbound_pump(app, cloud_client))
 
     _log(
-        f"[{datetime.now().strftime('%H:%M:%S')}] [cloud] tcp connected to {RELAY_URL} "
-        f"(base={CLOUD_BASE_URL}, session={RELAY_SESSION_ID})"
+        f"[{datetime.now().strftime('%H:%M:%S')}] [cloud] tcp connected to {relay_url} "
+        f"(base={cloud_base_url}, session={get_relay_session_id()})"
     )
 
 

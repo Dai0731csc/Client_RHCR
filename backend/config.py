@@ -12,22 +12,22 @@ HOST = "0.0.0.0"
 PORT = 8000
 
 TRANSPORT_MODE_ALIASES = {
-    "cloud": "cloud_tcp",
-    "relay": "cloud_tcp",
-    "tcp": "cloud_tcp",
-    "ws": "cloud_tcp",
-    "wss": "cloud_tcp",
     "cloud_tcp": "cloud_tcp",
     "cloud_udp": "cloud_udp",
-    "local": "local_udp",
-    "udp": "local_udp",
     "local_udp": "local_udp",
     "local_tcp": "local_tcp",
-    "lan_ws": "local_tcp",
+}
+SUPPORTED_TRANSPORT_MODES = frozenset(TRANSPORT_MODE_ALIASES.values())
+DEFAULT_TRANSPORT_MODE = "local_udp"
+DEFAULT_TRANSPORT_MODES = {
+    "local_udp": True,
+    "local_tcp": False,
+    "cloud_tcp": False,
+    "cloud_udp": False,
 }
 
 
-def _as_bool(value, *, default: bool) -> bool:
+def _as_bool(value, *, default: bool = False) -> bool:
     if value is None:
         return default
     if isinstance(value, bool):
@@ -58,26 +58,86 @@ _CLOUD_FILE = _load_cloud_file()
 
 
 def _cloud_top(key: str):
-    """``config/cloud.json`` 顶层键（默认值在 JSON 中维护）。"""
+    """Top-level key from ``config/cloud.json`` (defaults live in the JSON file)."""
     return _CLOUD_FILE.get(key)
 
 
 def _cfg(key: str, default):
-    """只读 ``config/cloud.json``，不用环境变量覆盖（换模式请改配置文件）。"""
+    """Read ``config/cloud.json`` only (no env overrides). Runtime changes use ``/settings`` or POST ``/api/settings``."""
     file_value = _CLOUD_FILE.get(key)
     if file_value is not None and file_value != "":
         return file_value
     return default
 
 
-def _config_path(key: str) -> str:
-    raw = str(_cloud_top(key) or "").strip()
+def _resolve_status_selection(
+    selections,
+    *,
+    selection_name: str,
+    fallback: str,
+) -> str:
+    if isinstance(selections, dict):
+        enabled_items: list[str] = []
+        for item_id, item_data in selections.items():
+            status = item_data.get("status") if isinstance(item_data, dict) else item_data
+            if bool(status):
+                enabled_items.append(str(item_id).strip())
+
+        enabled_items = [item_id for item_id in enabled_items if item_id]
+        if len(enabled_items) > 1:
+            raise ValueError(
+                f"{CLOUD_CONFIG_PATH} has multiple {selection_name} entries with status=true: "
+                + ", ".join(enabled_items)
+            )
+        if len(enabled_items) == 1:
+            return enabled_items[0]
+
+    return fallback
+
+
+def _resolve_local_topology() -> str:
+    topology = _resolve_status_selection(
+        _CLOUD_FILE.get("local_topologies"),
+        selection_name="local_topologies",
+        fallback="same_machine",
+    ).strip()
+    if topology not in {"same_machine", "same_lan"}:
+        raise ValueError(
+            f"Unsupported local topology={topology!r} in {CLOUD_CONFIG_PATH}; "
+            "use one of: same_machine, same_lan"
+        )
+    return topology
+
+
+def _value_path(raw_value) -> str:
+    raw = str(raw_value or "").strip()
     if not raw:
         return ""
     path = Path(raw).expanduser()
     if not path.is_absolute():
         path = CONFIG_DIR / path
     return str(path.resolve())
+
+
+def _config_path(key: str) -> str:
+    return _value_path(_cloud_top(key))
+
+
+def _default_tls_ca_path_for_scope(scope: str) -> str:
+    if scope == "cloud":
+        candidates = (
+            CONFIG_DIR / "certificate" / "cloud" / "ca.crt",
+            CONFIG_DIR / "ca.crt",
+        )
+    else:
+        candidates = (
+            CONFIG_DIR / "certificate" / "local" / "ca.crt",
+            CONFIG_DIR / "ca.crt",
+        )
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate.resolve())
+    return ""
 
 
 def _webrtc_scalar(key: str, default: str = "") -> str:
@@ -97,25 +157,64 @@ def normalize_transport_mode(value: str) -> str:
     return TRANSPORT_MODE_ALIASES.get(mode, mode)
 
 
-TRANSPORT_MODE = str(_cloud_top("transport_mode") or "").strip()
+def _tls_scope_for_transport_mode(transport_mode: str) -> str:
+    mode = str(transport_mode or "").strip().lower()
+    return "cloud" if mode in {"cloud_tcp", "cloud_udp"} else "local"
+
+
+def _resolve_tls_verify_for_transport_mode(transport_mode: str) -> bool:
+    scope = _tls_scope_for_transport_mode(transport_mode)
+    scoped_key = f"{scope}_tls_verify"
+    if scoped_key in _CLOUD_FILE:
+        return _as_bool(_cloud_top(scoped_key), default=True)
+    return _as_bool(_cloud_top("tls_verify"), default=True)
+
+
+def _resolve_tls_ca_file_for_transport_mode(transport_mode: str) -> str:
+    scope = _tls_scope_for_transport_mode(transport_mode)
+    scoped_key = f"{scope}_tls_ca_file"
+    raw = _cloud_top(scoped_key)
+    if raw is None or raw == "":
+        raw = _cloud_top("tls_ca_file")
+    resolved = _value_path(raw)
+    if resolved:
+        return resolved
+    return _default_tls_ca_path_for_scope(scope)
+
+
+TRANSPORT_MODE = _resolve_status_selection(
+    _CLOUD_FILE.get("transport_modes") or DEFAULT_TRANSPORT_MODES,
+    selection_name="transport_modes",
+    fallback=DEFAULT_TRANSPORT_MODE,
+)
 TRANSPORT_MODE = normalize_transport_mode(TRANSPORT_MODE)
+if TRANSPORT_MODE and TRANSPORT_MODE not in SUPPORTED_TRANSPORT_MODES:
+    raise ValueError(
+        f"Unsupported transport mode={TRANSPORT_MODE!r} in {CLOUD_CONFIG_PATH}; "
+        "use one of: local_udp, local_tcp, cloud_tcp, cloud_udp"
+    )
+
+LOCAL_TOPOLOGY = _resolve_local_topology()
+LOCAL_LAN_HOST = str(_cloud_top("local_lan_host") or "").strip()
 
 _cloud_host = str(_cloud_top("cloud_host") or "").strip()
 _cloud_tcp_port = int(_cloud_top("cloud_tcp_port"))
 _cloud_udp_port = int(_cloud_top("cloud_udp_port"))
 _cloud_tls_raw = _CLOUD_FILE.get("cloud_use_tls")
-# 默认 HTTPS/WSS；JSON 不写该键等价 true；明文调试设 ``cloud_use_tls: false``
+# Default HTTPS/WSS; omitting the key is equivalent to true; set ``cloud_use_tls: false`` for plain WS debugging.
 _cloud_use_tls = _as_bool(_cloud_tls_raw, default=True)
-_cloud_tls_verify_raw = _CLOUD_FILE.get("tls_verify")
-TLS_VERIFY = _as_bool(_cloud_tls_verify_raw, default=True)
-TLS_CA_FILE = _config_path("tls_ca_file")
+TLS_VERIFY = _resolve_tls_verify_for_transport_mode(TRANSPORT_MODE)
+TLS_CA_FILE = _resolve_tls_ca_file_for_transport_mode(TRANSPORT_MODE)
+LOCAL_TLS_CERT_FILE = _value_path(
+    _cloud_top("local_tls_cert_file") or "certificate/local/cert.pem"
+)
+LOCAL_TLS_KEY_FILE = _value_path(
+    _cloud_top("local_tls_key_file") or "certificate/local/key.pem"
+)
 
-# relay：cloud_tcp / local_tcp → 拼 https/wss 或 http/ws（与 ``cloud_use_tls`` 一致）
+# Relay: ``cloud_tcp`` uses outbound cloud /relay; ``local_tcp`` exposes GET /relay on this client.
 _ws_host = _cloud_host
-if TRANSPORT_MODE == "local_tcp" and not _ws_host:
-    _ws_host = "127.0.0.1"
-
-if TRANSPORT_MODE in {"cloud_tcp", "local_tcp"} and _ws_host:
+if TRANSPORT_MODE == "cloud_tcp" and _ws_host:
     _http_scheme = "https" if _cloud_use_tls else "http"
     _ws_scheme = "wss" if _cloud_use_tls else "ws"
     CLOUD_BASE_URL = f"{_http_scheme}://{_ws_host}:{_cloud_tcp_port}"
@@ -138,50 +237,92 @@ else:
     CLOUD_UDP_HOST = str(_cfg("udp_host", _cloud_host or "127.0.0.1")).strip()
     CLOUD_UDP_PORT = int(_cloud_top("udp_port"))
 
-MASTER_UDP_HOST = str(_cfg("master_udp_host", "0.0.0.0"))
+_master_udp_host = str(_cloud_top("master_udp_host") or "").strip()
+if not _master_udp_host:
+    _master_udp_host = "127.0.0.1" if LOCAL_TOPOLOGY == "same_machine" else "0.0.0.0"
+MASTER_UDP_HOST = _master_udp_host
 MASTER_UDP_PORT = int(_cfg("master_udp_port", 9001))
 MASTER_UDP_MAX_PACKET_BYTES = int(_cfg("master_udp_max_packet_bytes", 65507))
 GRIPPER_SERVICE_HOST = str(_cfg("gripper_service_host", "127.0.0.1"))
 GRIPPER_SERVICE_PORT = int(_cfg("gripper_service_port", 9002))
 
 
-def use_relay_transport() -> bool:
-    """经 WebSocket ``/relay`` 出站（``cloud_tcp`` 与 ``local_tcp``）。"""
-    return use_relay_ws_transport()
+def _runtime():
+    from .runtime_settings import get_runtime_settings
+
+    return get_runtime_settings()
 
 
-def use_cloud_transport() -> bool:
-    return TRANSPORT_MODE in {"cloud_tcp", "cloud_udp", "local_tcp"}
+def get_transport_mode() -> str:
+    return _runtime().transport_mode
 
 
-def use_relay_ws_transport() -> bool:
-    """WebSocket relay 路径（云上或本地中继均为同一客户端逻辑）。"""
-    return TRANSPORT_MODE in {"cloud_tcp", "local_tcp"}
+def get_relay_url() -> str:
+    return _runtime().relay_url
+
+
+def get_relay_session_id() -> str:
+    return _runtime().session_id
+
+
+def get_relay_token() -> str:
+    return _runtime().token
+
+
+def get_relay_reconnect_delay_s() -> float:
+    return _runtime().reconnect_delay_s
+
+
+def get_cloud_udp_host() -> str:
+    return _runtime().cloud_udp_host
+
+
+def get_cloud_udp_port() -> int:
+    return _runtime().cloud_udp_port
+
+
+def get_master_udp_host() -> str:
+    return _runtime().master_udp_host
+
+
+def get_master_udp_port() -> int:
+    return _runtime().master_udp_port
+
+
+def get_gripper_service_host() -> str:
+    return _runtime().gripper_service_host
+
+
+def get_gripper_service_port() -> int:
+    return _runtime().gripper_service_port
+
+
+def get_runtime_tls_verify() -> bool:
+    return _runtime().tls_verify()
+
+
+def get_runtime_tls_ca_file() -> str:
+    return _runtime().tls_ca_file()
 
 
 def use_cloud_tcp_transport() -> bool:
-    """兼容旧名：等价于 ``use_relay_ws_transport()``。"""
-    return use_relay_ws_transport()
+    return _runtime().use_cloud_tcp_transport()
 
 
 def use_cloud_udp_transport() -> bool:
-    return TRANSPORT_MODE == "cloud_udp"
+    return _runtime().use_cloud_udp_transport()
 
 
 def use_local_udp_transport() -> bool:
-    return TRANSPORT_MODE == "local_udp"
+    return _runtime().use_local_udp_transport()
 
 
 def use_local_tcp_transport() -> bool:
-    return TRANSPORT_MODE == "local_tcp"
-
-
-def use_local_profile() -> bool:
-    return TRANSPORT_MODE == "local_udp"
+    return _runtime().use_local_tcp_transport()
 
 
 def use_cloud_profile() -> bool:
-    return TRANSPORT_MODE in {"cloud_tcp", "cloud_udp", "local_tcp"}
+    return _runtime().use_cloud_profile()
 
 
 def get_webrtc_ice_servers():
@@ -232,5 +373,5 @@ def create_rtc_configuration(RTCConfiguration, RTCIceServer):
 
 def create_ssl_context():
     ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    ssl_ctx.load_cert_chain(CONFIG_DIR / "cert.pem", CONFIG_DIR / "key.pem")
+    ssl_ctx.load_cert_chain(LOCAL_TLS_CERT_FILE, LOCAL_TLS_KEY_FILE)
     return ssl_ctx

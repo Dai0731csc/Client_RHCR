@@ -5,7 +5,7 @@ from datetime import datetime
 from aiohttp import web
 
 from ..config import build_webrtc_client_config, create_rtc_configuration
-from ..services.stream_service import ingest_apriltag_payload, ingest_initial_calibration_payload
+from ..services.stream_service import ingest_apriltag_payload
 from ..state import WEBRTC_PEER_CONNECTIONS_KEY
 from ..utils import create_ack_payload
 
@@ -107,14 +107,6 @@ def create_peer_connection(app, client_label):
                         f"offset_ms={payload.get('offset_ms', 'n/a')} "
                         f"rtt_ms={payload.get('rtt_ms', 'n/a')} "
                         f"completed_at={payload.get('completed_at', 'n/a')}"
-                    )
-                    return
-
-                if message_type == "initial_calibration":
-                    ingest_initial_calibration_payload(
-                        app,
-                        payload,
-                        source=f"webrtc:{channel.label}",
                     )
                     return
 

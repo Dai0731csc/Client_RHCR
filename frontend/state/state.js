@@ -42,8 +42,6 @@
     webrtcConfig: null,
     calibrationSocket: null,
     calibrationSocketReady: null,
-    controlSocket: null,
-    controlSocketReady: null,
     timeSyncInProgress: false,
     lastTimeSyncResult: null,
     webrtcFailureCount: 0,

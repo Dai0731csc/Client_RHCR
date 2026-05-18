@@ -197,14 +197,16 @@ class CloudWsClient:
             if isinstance(error, FileNotFoundError):
                 raise RuntimeError(
                     f"relay TLS CA file is missing: {error}. "
-                    "Set tls_ca_file in client/config/cloud.json to a valid certificate path."
+                    "Set cloud_tls_ca_file in client/config/cloud.json "
+                    "(or use tls_ca_file as a fallback) to a valid certificate path."
                 ) from error
             if isinstance(error, aiohttp.ClientConnectorCertificateError):
                 raise RuntimeError(
                     "relay TLS certificate verification failed for "
                     f"{self.url}. If you are using a self-signed certificate, "
-                    "set tls_ca_file in client/config/cloud.json to the CA certificate, "
-                    "or set tls_verify to false for temporary testing."
+                    "set cloud_tls_ca_file in client/config/cloud.json "
+                    "(or tls_ca_file as a fallback) to the CA certificate, "
+                    "or set cloud_tls_verify to false for temporary testing."
                 ) from error
             raise
 

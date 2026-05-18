@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>TeleProgram Settings</title>
+  <link rel="stylesheet" href="{{ static_url_prefix }}/styles/settings.css" />
+</head>
+<body>
+  <main class="settings-app">
+    <header class="settings-hero">
+      <a id="back-link" class="back-link" href="#">← Camera</a>
+      <h1>Settings</h1>
+      <p class="settings-copy">Changes apply immediately and reconnect outbound (like the server dashboard). No Save button or process restart.</p>
+    </header>
+
+    <div id="settings-form" class="settings-form">
+      <div class="transport-mode-field">
+        <span>Transport Mode</span>
+        <div class="transport-mode-toggles">
+          <label class="toggle-option">
+            <input id="transport-local-udp" type="checkbox" data-transport-mode="local_udp">
+            <span>local_udp</span>
+          </label>
+          <label class="toggle-option">
+            <input id="transport-local-tcp" type="checkbox" data-transport-mode="local_tcp">
+            <span>local_tcp</span>
+          </label>
+          <label class="toggle-option">
+            <input id="transport-cloud-tcp" type="checkbox" data-transport-mode="cloud_tcp">
+            <span>cloud_tcp</span>
+          </label>
+          <label class="toggle-option">
+            <input id="transport-cloud-udp" type="checkbox" data-transport-mode="cloud_udp">
+            <span>cloud_udp</span>
+          </label>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Session ID</span>
+        <input id="session-id" type="text" autocomplete="off" spellcheck="false">
+      </label>
+
+      <label class="field">
+        <span>Cloud Host</span>
+        <input id="cloud-host" type="text" placeholder="86.50.169.179" autocomplete="off" spellcheck="false">
+      </label>
+
+      <div class="topology-field">
+        <span>Local Topology</span>
+        <div class="topology-toggles">
+          <label class="toggle-option">
+            <input id="topology-same-machine" type="checkbox">
+            <span>same_machine</span>
+          </label>
+          <label class="toggle-option">
+            <input id="topology-same-lan" type="checkbox">
+            <span>same_lan</span>
+          </label>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Local LAN Host</span>
+        <input id="local-lan-host" type="text" placeholder="192.168.x.x" autocomplete="off" spellcheck="false">
+      </label>
+
+      <p id="save-feedback" class="save-feedback" aria-live="polite"></p>
+    </div>
+
+    <section class="settings-status">
+      <h2>Runtime</h2>
+      <dl>
+        <div><dt>Effective mode</dt><dd id="effective-mode">-</dd></div>
+        <div><dt>Outbound</dt><dd id="active-outbound">-</dd></div>
+        <div><dt>Connected</dt><dd id="outbound-connected">-</dd></div>
+        <div><dt>Relay URL</dt><dd id="relay-url">-</dd></div>
+        <div><dt>Config file</dt><dd id="config-path">-</dd></div>
+      </dl>
+    </section>
+  </main>
+
+  <script>
+    window.SettingsPageConfig = {
+      basePath: {{ base_path|tojson }}
+    };
+  </script>
+  <script src="{{ static_url_prefix }}/modules/settings.js"></script>
+</body>
+</html>
