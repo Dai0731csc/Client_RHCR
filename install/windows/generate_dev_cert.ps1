@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ClientRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $ScriptDir))
+$ClientRoot = Split-Path -Parent (Split-Path -Parent $ScriptDir)
 $ConfigDir = Join-Path $ClientRoot "config"
 $CertDir = Join-Path $ConfigDir "certificate\local"
 $CaCertPath = Join-Path $CertDir "ca.crt"

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLIENT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+CLIENT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 CONFIG_DIR="${CLIENT_ROOT}/config"
 CERT_DIR="${CONFIG_DIR}/certificate/local"
 CA_KEY_PATH="${CERT_DIR}/ca.key"

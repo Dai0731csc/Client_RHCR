@@ -93,6 +93,8 @@ Indicates whether vision detection is currently active.
   "client_send_time": "2026-04-23T10:00:00.100Z",
   "server_receive_time": "2026-04-23T10:00:00.120Z",
   "server_send_time": "2026-04-23T10:00:00.121Z",
+  "cloud_receive_time": "2026-04-23T10:00:00.130Z",
+  "cloud_send_time": "2026-04-23T10:00:00.131Z",
   "client_clock_offset_ms": -3.2,
   "client_clock_rtt_ms": 9.8,
   "nominal_frame_rate": 30,
@@ -153,6 +155,9 @@ The core raw pose message. The control side should read `pose.t` and `pose.R` di
   "client_send_time": "2026-04-23T10:00:01.116Z",
   "server_receive_time": "2026-04-23T10:00:01.130Z",
   "server_send_time": "2026-04-23T10:00:01.131Z",
+  "cloud_receive_time": "2026-04-23T10:00:01.140Z",
+  "cloud_send_time": "2026-04-23T10:00:01.141Z",
+  "control_socket_receive_time": "2026-04-23T10:00:01.155Z",
   "client_clock_offset_ms": -3.2,
   "client_clock_rtt_ms": 9.8,
   "nominal_frame_rate": 30,
@@ -187,6 +192,12 @@ Sequence fields (analysis / gap detection):
 
 - `client_seq`: optional; browser increments once per `apriltag_detections` publish (merged through ingest before UDP).
 - `master_seq`: assigned by TeleProgram for each UDP broadcast of stream payloads (`detection_state`, `initial_calibration`, `apriltag_detections`).
+
+Additional relay / ingress timing fields:
+
+- `cloud_receive_time`: optional; present when using cloud relay, stamped when the relay receives the master payload.
+- `cloud_send_time`: optional; present when using cloud relay, stamped immediately before the relay forwards to the slave.
+- `control_socket_receive_time`: optional; stamped on the control side as soon as the payload reaches the socket / relay ingress path, before queue wait and event processing.
 
 Minimum required fields in `detections[*]`:
 

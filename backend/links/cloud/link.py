@@ -12,23 +12,29 @@ class CloudLink:
 
     def __init__(self):
         self._app = None
+        self._started_mode: str | None = None
 
     async def start(self, app) -> None:
         self._app = app
         if use_cloud_tcp_transport():
             await start_cloud_tcp(app)
+            self._started_mode = "cloud_tcp"
             return
         if use_cloud_udp_transport():
             await start_cloud_udp(app)
+            self._started_mode = "cloud_udp"
 
     async def close(self, app) -> None:
         try:
-            if use_cloud_tcp_transport():
+            if self._started_mode == "cloud_tcp":
                 await close_cloud_tcp(app)
-                return
-            if use_cloud_udp_transport():
+            elif self._started_mode == "cloud_udp":
+                await close_cloud_udp(app)
+            else:
+                await close_cloud_tcp(app)
                 await close_cloud_udp(app)
         finally:
+            self._started_mode = None
             self._app = None
 
     def broadcast_pose(self, app, payload: dict, *, add_server_send_time: bool = False) -> None:

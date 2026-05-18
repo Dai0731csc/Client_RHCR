@@ -2,6 +2,7 @@ MASTER_LATEST_INITIAL_CALIBRATION_KEY = "master_latest_initial_calibration"
 MASTER_LATEST_APRILTAG_PAYLOAD_KEY = "master_latest_apriltag_payload"
 MASTER_LATEST_DETECTION_STATE_KEY = "master_latest_detection_state"
 GRIPPER_COMMAND_TRANSPORT_KEY = "gripper_command_transport"
+GRIPPER_COMMAND_PROTOCOL_KEY = "gripper_command_protocol"
 MASTER_SLAVE_PEERS_KEY = "master_slave_peers"
 MASTER_UDP_TRANSPORT_KEY = "master_udp_transport"
 MASTER_UDP_PROTOCOL_KEY = "master_udp_protocol"
@@ -16,6 +17,7 @@ APP_STATE_DEFAULTS = {
     MASTER_LATEST_APRILTAG_PAYLOAD_KEY: None,
     MASTER_LATEST_DETECTION_STATE_KEY: None,
     GRIPPER_COMMAND_TRANSPORT_KEY: None,
+    GRIPPER_COMMAND_PROTOCOL_KEY: None,
     MASTER_SLAVE_PEERS_KEY: dict,
     MASTER_UDP_TRANSPORT_KEY: None,
     MASTER_UDP_PROTOCOL_KEY: None,

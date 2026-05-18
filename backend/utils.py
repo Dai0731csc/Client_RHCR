@@ -8,6 +8,9 @@ TIMING_FIELD_NAMES = (
     "client_clock_rtt_ms",
     "server_receive_time",
     "server_send_time",
+    "cloud_receive_time",
+    "cloud_send_time",
+    "control_socket_receive_time",
 )
 
 

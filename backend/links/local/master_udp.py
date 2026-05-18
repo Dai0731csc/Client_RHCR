@@ -62,6 +62,7 @@ class LocalMasterUdpProtocol(asyncio.DatagramProtocol):
     def __init__(self, app):
         self.app = app
         self.transport = None
+        self.closed = asyncio.get_running_loop().create_future()
 
     def connection_made(self, transport):
         self.transport = transport
@@ -96,6 +97,8 @@ class LocalMasterUdpProtocol(asyncio.DatagramProtocol):
         self.app[MASTER_UDP_TRANSPORT_KEY] = None
         self.app[MASTER_UDP_PROTOCOL_KEY] = None
         self.app[MASTER_SLAVE_PEERS_KEY].clear()
+        if not self.closed.done():
+            self.closed.set_result(None)
         if exc is not None:
             log_pose(f"[local] master udp transport closed with error: {exc}")
 
@@ -112,8 +115,11 @@ async def start_local_master_udp(app) -> None:
 
 async def close_local_master_udp(app) -> None:
     transport = app.get(MASTER_UDP_TRANSPORT_KEY)
+    protocol = app.get(MASTER_UDP_PROTOCOL_KEY)
     if transport is not None:
         transport.close()
+        if protocol is not None and hasattr(protocol, "closed"):
+            await protocol.closed
 
     app[MASTER_UDP_TRANSPORT_KEY] = None
     app[MASTER_UDP_PROTOCOL_KEY] = None

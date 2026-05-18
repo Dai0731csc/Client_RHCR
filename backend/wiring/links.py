@@ -17,12 +17,6 @@ def build_client_links() -> ClientLinks:
 
 
 async def install_links(app):
-    if use_cloud_tcp_transport() and not (get_relay_url() or "").strip():
-        raise RuntimeError(
-            "cloud_tcp requires a relay URL: set cloud_host and cloud_tcp_port in "
-            "/settings or config/cloud.json."
-        )
-
     links = app.get(LINKS_KEY)
     if links is None:
         links = build_client_links()
@@ -31,7 +25,19 @@ async def install_links(app):
         settings = get_runtime_settings()
         links.active_outbound = settings.active_outbound_name()
 
-    await links.outbound.start(app)
+    try:
+        if use_cloud_tcp_transport() and not (get_relay_url() or "").strip():
+            raise RuntimeError(
+                "cloud_tcp requires a relay URL: set cloud_host and cloud_tcp_port in "
+                "/settings or config/cloud.json."
+            )
+        await links.outbound.start(app)
+    except Exception as exc:
+        settings = get_runtime_settings()
+        print(
+            "[TeleProgram] outbound start failed; frontend remains available. "
+            f"transport_mode={settings.transport_mode} error={exc}"
+        )
 
 
 async def shutdown_links(app):
