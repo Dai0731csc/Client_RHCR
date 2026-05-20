@@ -24,7 +24,7 @@ async def apriltag_publish_websocket_handler(request):
     await ws.send_json(
         {
             "type": "publish_ready",
-            "server_time": datetime.now().isoformat(timespec="seconds"),
+            "master_time": datetime.now().isoformat(timespec="seconds"),
         }
     )
 

@@ -43,7 +43,7 @@ async def calibration_publish_websocket_handler(request):
     await ws.send_json(
         {
             "type": "calibration_publish_ready",
-            "server_time": datetime.now().isoformat(timespec="seconds"),
+            "master_time": datetime.now().isoformat(timespec="seconds"),
         }
     )
 

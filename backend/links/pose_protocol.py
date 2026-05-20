@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from ..state import MASTER_SLAVE_PEERS_KEY, MASTER_UDP_SEQUENCE_KEY
-from ..utils import with_server_send_time
+from ..utils import with_master_send_time
 
 MASTER_STREAM_PROTOCOL = "rhcr-oulu.raw-pose-stream"
 SLAVE_SUBSCRIBE_MESSAGE_TYPE = "slave_subscribe"
@@ -42,9 +42,9 @@ def decorate_master_payload(
     *,
     link_name: str,
     transport: str | None = None,
-    add_server_send_time: bool = False,
+    add_master_send_time: bool = False,
 ) -> dict:
-    packet = with_server_send_time(payload) if add_server_send_time else dict(payload)
+    packet = with_master_send_time(payload) if add_master_send_time else dict(payload)
     packet["protocol"] = MASTER_STREAM_PROTOCOL
     packet["transport"] = transport or _TRANSPORT_BY_LINK.get(link_name, link_name)
     if packet.get("type") in MASTER_STREAM_DATA_TYPES:

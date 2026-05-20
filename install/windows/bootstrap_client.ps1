@@ -99,9 +99,11 @@ Invoke-CommandArray -Command $ActivePythonCommand -Arguments @(
     "-m", "pip", "install", "-r", (Join-Path $ClientRoot "install\requirements.txt")
 )
 
-$CertArguments = @("-PythonCommand") + $ActivePythonCommand
+$CertArguments = @{
+    PythonCommand = $ActivePythonCommand
+}
 if ($ForceCert) {
-    $CertArguments += "-Force"
+    $CertArguments.Force = $true
 }
 
 & (Join-Path $ScriptDir "generate_dev_cert.ps1") @CertArguments

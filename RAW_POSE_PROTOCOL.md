@@ -27,7 +27,7 @@ All messages include:
 }
 ```
 
-## Client To Server
+## Slave To Master
 
 ### `slave_subscribe`
 
@@ -61,7 +61,7 @@ Fields:
 }
 ```
 
-## Server To Client
+## Master To Slave
 
 ### `master_stream_ready`
 
@@ -71,7 +71,7 @@ Returned after the subscription is established.
 {
   "type": "master_stream_ready",
   "protocol": "rhcr-oulu.raw-pose-stream",
-  "server_time": "2026-04-23T10:00:00.010Z",
+  "master_time": "2026-04-23T10:00:00.010Z",
   "transport": "udp",
   "has_detection_state": true,
   "has_initial_calibration": true,
@@ -91,8 +91,8 @@ Indicates whether vision detection is currently active.
   "master_seq": 101,
   "active": true,
   "client_send_time": "2026-04-23T10:00:00.100Z",
-  "server_receive_time": "2026-04-23T10:00:00.120Z",
-  "server_send_time": "2026-04-23T10:00:00.121Z",
+  "master_receive_time": "2026-04-23T10:00:00.120Z",
+  "master_send_time": "2026-04-23T10:00:00.121Z",
   "cloud_receive_time": "2026-04-23T10:00:00.130Z",
   "cloud_send_time": "2026-04-23T10:00:00.131Z",
   "client_clock_offset_ms": -3.2,
@@ -153,8 +153,8 @@ The core raw pose message. The control side should read `pose.t` and `pose.R` di
   "detectTag_start_time": "2026-04-23T10:00:01.100Z",
   "detectTag_end_time": "2026-04-23T10:00:01.115Z",
   "client_send_time": "2026-04-23T10:00:01.116Z",
-  "server_receive_time": "2026-04-23T10:00:01.130Z",
-  "server_send_time": "2026-04-23T10:00:01.131Z",
+  "master_receive_time": "2026-04-23T10:00:01.130Z",
+  "master_send_time": "2026-04-23T10:00:01.131Z",
   "cloud_receive_time": "2026-04-23T10:00:01.140Z",
   "cloud_send_time": "2026-04-23T10:00:01.141Z",
   "control_socket_receive_time": "2026-04-23T10:00:01.155Z",
@@ -193,11 +193,15 @@ Sequence fields (analysis / gap detection):
 - `client_seq`: optional; browser increments once per `apriltag_detections` publish (merged through ingest before UDP).
 - `master_seq`: assigned by TeleProgram for each UDP broadcast of stream payloads (`detection_state`, `initial_calibration`, `apriltag_detections`).
 
-Additional relay / ingress timing fields:
+Timing fields:
 
+- `client_send_time`: stamped by the browser/frontend immediately before publishing a message to TeleProgram.
+- `master_receive_time`: stamped by TeleProgram/master backend when it ingests the frontend message.
+- `master_send_time`: stamped by TeleProgram/master backend immediately before forwarding to the active outbound link.
 - `cloud_receive_time`: optional; present when using cloud relay, stamped when the relay receives the master payload.
 - `cloud_send_time`: optional; present when using cloud relay, stamped immediately before the relay forwards to the slave.
 - `control_socket_receive_time`: optional; stamped on the control side as soon as the payload reaches the socket / relay ingress path, before queue wait and event processing.
+- `control_receive_time`: stamped when the control-stream adapter accepts the payload for filtering / event conversion.
 
 Minimum required fields in `detections[*]`:
 

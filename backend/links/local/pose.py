@@ -15,7 +15,7 @@ def encode_udp_payload(payload: dict) -> bytes:
     return encoded
 
 
-def send_pose_packet(app, peer_key, payload: dict, *, add_server_send_time: bool = False) -> bool:
+def send_pose_packet(app, peer_key, payload: dict, *, add_master_send_time: bool = False) -> bool:
     transport = app.get(MASTER_UDP_TRANSPORT_KEY)
     if transport is None:
         return False
@@ -24,7 +24,7 @@ def send_pose_packet(app, peer_key, payload: dict, *, add_server_send_time: bool
         app,
         payload,
         link_name="local",
-        add_server_send_time=add_server_send_time,
+        add_master_send_time=add_master_send_time,
     )
     try:
         transport.sendto(encode_udp_payload(packet), peer_key)
@@ -37,12 +37,12 @@ def send_pose_packet(app, peer_key, payload: dict, *, add_server_send_time: bool
     return True
 
 
-def broadcast_pose(app, payload: dict, *, add_server_send_time: bool = False) -> None:
+def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) -> None:
     packet = decorate_master_payload(
         app,
         payload,
         link_name="local",
-        add_server_send_time=add_server_send_time,
+        add_master_send_time=add_master_send_time,
     )
     transport = app.get(MASTER_UDP_TRANSPORT_KEY)
     if transport is None:

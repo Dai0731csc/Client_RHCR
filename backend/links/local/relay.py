@@ -87,7 +87,7 @@ async def _broadcast_local_relay(peers: list[tuple[tuple[str, int], object]], pa
     return stale_peers
 
 
-def broadcast_local_relay_payload(app, payload: dict, *, add_server_send_time: bool = False) -> bool:
+def broadcast_local_relay_payload(app, payload: dict, *, add_master_send_time: bool = False) -> bool:
     peers = [
         (peer_key, ws)
         for peer_key, ws in app[MASTER_LOCAL_RELAY_PEERS_KEY].items()
@@ -101,7 +101,7 @@ def broadcast_local_relay_payload(app, payload: dict, *, add_server_send_time: b
         payload,
         link_name="local",
         transport="wss",
-        add_server_send_time=add_server_send_time,
+        add_master_send_time=add_master_send_time,
     )
 
     async def _run() -> None:
@@ -114,7 +114,7 @@ def broadcast_local_relay_payload(app, payload: dict, *, add_server_send_time: b
 
 
 def send_local_relay_gripper_command(app, command_payload: dict) -> bool:
-    return broadcast_local_relay_payload(app, command_payload, add_server_send_time=False)
+    return broadcast_local_relay_payload(app, command_payload, add_master_send_time=False)
 
 
 def send_local_relay_snapshot(app, peer_key) -> None:
@@ -126,7 +126,7 @@ def send_local_relay_snapshot(app, peer_key) -> None:
         (
             {
                 "type": MASTER_STREAM_READY_MESSAGE_TYPE,
-                "server_time": current_utc_iso_timestamp(),
+                "master_time": current_utc_iso_timestamp(),
                 "has_detection_state": app[MASTER_LATEST_DETECTION_STATE_KEY] is not None,
                 "has_initial_calibration": app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None,
                 "has_apriltag_detections": app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None,
@@ -142,13 +142,13 @@ def send_local_relay_snapshot(app, peer_key) -> None:
         payloads.append((app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY], True))
 
     async def _run() -> None:
-        for payload, add_server_send_time in payloads:
+        for payload, add_master_send_time in payloads:
             packet = decorate_master_payload(
                 app,
                 payload,
                 link_name="local",
                 transport="wss",
-                add_server_send_time=add_server_send_time,
+                add_master_send_time=add_master_send_time,
             )
             try:
                 await _send_to_peer(ws, packet)

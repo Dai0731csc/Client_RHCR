@@ -181,7 +181,7 @@ class ClientRuntimeSettings:
             else (CONFIG_DIR / "certificate" / "local" / "ca.crt", CONFIG_DIR / "ca.crt")
         )
         for candidate in candidates:
-            if candidate.is_file():
+            if candidate.is_file() and candidate.stat().st_size > 0:
                 return str(candidate.resolve())
         return ""
 

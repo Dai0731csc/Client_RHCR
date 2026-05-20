@@ -10,18 +10,18 @@ from ..state import (
     MASTER_LATEST_INITIAL_CALIBRATION_KEY,
 )
 from ..links import get_links
-from ..utils import with_server_receive_time
+from ..utils import with_master_receive_time
 
 
 def _log(message):
     print(f"[TeleProgram] {message}")
 
 
-def _broadcast(app, payload, *, add_server_send_time=False):
+def _broadcast(app, payload, *, add_master_send_time=False):
     get_links(app).outbound.broadcast_pose(
         app,
         payload,
-        add_server_send_time=add_server_send_time,
+        add_master_send_time=add_master_send_time,
     )
 
 
@@ -50,8 +50,9 @@ def ingest_initial_calibration_payload(
     *,
     source="websocket",
 ) -> InitialCalibrationPayload:
+    payload = cast(InitialCalibrationPayload, with_master_receive_time(payload))
     app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] = payload
-    _broadcast(app, payload, add_server_send_time=True)
+    _broadcast(app, payload, add_master_send_time=True)
     mean_pose = payload.get("mean_pose", {})
     mean_t = mean_pose.get("t")
     _log(
@@ -63,13 +64,13 @@ def ingest_initial_calibration_payload(
 
 
 async def ingest_apriltag_payload(app, payload: dict[str, Any], *, source="websocket"):
-    payload = with_server_receive_time(payload)
+    payload = with_master_receive_time(payload)
     message_type = payload.get("type")
 
     if message_type == "detection_state":
         detection_state_payload = cast(DetectionStatePayload, payload)
         app[MASTER_LATEST_DETECTION_STATE_KEY] = detection_state_payload
-        _broadcast(app, detection_state_payload, add_server_send_time=True)
+        _broadcast(app, detection_state_payload, add_master_send_time=True)
         _log(
             f"[{datetime.now().strftime('%H:%M:%S')}] detection state "
             f"({source}): active={bool(detection_state_payload.get('active', False))} "
@@ -91,7 +92,7 @@ async def ingest_apriltag_payload(app, payload: dict[str, Any], *, source="webso
         "frame_size": payload.get("frame_size", latest_detection_state.get("frame_size")),
     })
     app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] = master_payload
-    _broadcast(app, master_payload, add_server_send_time=True)
+    _broadcast(app, master_payload, add_master_send_time=True)
 
     detections = master_payload.get("detections") or []
     detection_summaries = []

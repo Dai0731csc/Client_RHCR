@@ -44,15 +44,15 @@ class LocalLink:
         self._started = False
         self._started_mode = None
 
-    def broadcast_pose(self, app, payload: dict, *, add_server_send_time: bool = False) -> None:
+    def broadcast_pose(self, app, payload: dict, *, add_master_send_time: bool = False) -> None:
         if use_local_tcp_transport():
             broadcast_local_relay_payload(
                 app,
                 payload,
-                add_server_send_time=add_server_send_time,
+                add_master_send_time=add_master_send_time,
             )
             return
-        broadcast_local_udp_pose(app, payload, add_server_send_time=add_server_send_time)
+        broadcast_local_udp_pose(app, payload, add_master_send_time=add_master_send_time)
 
     def send_gripper(self, app, command_payload: dict) -> bool:
         if use_local_tcp_transport():

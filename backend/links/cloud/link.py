@@ -37,11 +37,11 @@ class CloudLink:
             self._started_mode = None
             self._app = None
 
-    def broadcast_pose(self, app, payload: dict, *, add_server_send_time: bool = False) -> None:
-        broadcast_pose(app, payload, add_server_send_time=add_server_send_time)
+    def broadcast_pose(self, app, payload: dict, *, add_master_send_time: bool = False) -> None:
+        broadcast_pose(app, payload, add_master_send_time=add_master_send_time)
 
     def send_gripper(self, app, command_payload: dict) -> bool:
-        return broadcast_pose(app, command_payload, add_server_send_time=False)
+        return broadcast_pose(app, command_payload, add_master_send_time=False)
 
     @property
     def is_connected(self) -> bool:

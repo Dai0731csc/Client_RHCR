@@ -70,6 +70,8 @@ def _build_client_ssl_value(*, url: str, tls_verify: bool, tls_ca_file: str) -> 
     cafile = Path(tls_ca_file)
     if not cafile.is_file():
         raise FileNotFoundError(f"TLS CA file not found: {cafile}")
+    if cafile.stat().st_size == 0:
+        raise ValueError(f"TLS CA file is empty: {cafile}")
     return ssl.create_default_context(cafile=str(cafile))
 
 
@@ -199,6 +201,12 @@ class CloudWsClient:
                     f"relay TLS CA file is missing: {error}. "
                     "Set cloud_tls_ca_file in client/config/cloud.json "
                     "(or use tls_ca_file as a fallback) to a valid certificate path."
+                ) from error
+            if isinstance(error, ValueError) and "TLS CA file is empty" in str(error):
+                raise RuntimeError(
+                    f"relay TLS CA file is empty: {error}. "
+                    "Replace it with the relay CA certificate, clear cloud_tls_ca_file "
+                    "to use system CAs, or set cloud_tls_verify to false for temporary testing."
                 ) from error
             if isinstance(error, aiohttp.ClientConnectorCertificateError):
                 raise RuntimeError(

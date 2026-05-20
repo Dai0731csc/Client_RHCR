@@ -20,8 +20,8 @@ class DetectionStatePayload(TypedDict, total=False):
     active: bool
     nominal_frame_rate: float | None
     frame_size: list[int] | None
-    server_receive_time: str | None
-    server_send_time: str | None
+    master_receive_time: str | None
+    master_send_time: str | None
     cloud_receive_time: str | None
     cloud_send_time: str | None
     control_socket_receive_time: str | None
@@ -33,7 +33,8 @@ class InitialCalibrationPayload(TypedDict, total=False):
     tag_id: int
     sample_count: int
     mean_pose: TagPose
-    server_send_time: str | None
+    master_receive_time: str | None
+    master_send_time: str | None
     cloud_receive_time: str | None
     cloud_send_time: str | None
     control_socket_receive_time: str | None
@@ -45,8 +46,8 @@ class AprilTagDetectionsPayload(TypedDict, total=False):
     detections: list[AprilTagDetection]
     nominal_frame_rate: float | None
     frame_size: list[int] | None
-    server_receive_time: str | None
-    server_send_time: str | None
+    master_receive_time: str | None
+    master_send_time: str | None
     cloud_receive_time: str | None
     cloud_send_time: str | None
     control_socket_receive_time: str | None

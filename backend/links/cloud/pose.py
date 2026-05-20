@@ -23,7 +23,7 @@ def send_master_snapshot(app, peer_key) -> None:
         app,
         {
             "type": MASTER_STREAM_READY_MESSAGE_TYPE,
-            "server_time": current_utc_iso_timestamp(),
+            "master_time": current_utc_iso_timestamp(),
             "has_detection_state": app[MASTER_LATEST_DETECTION_STATE_KEY] is not None,
             "has_initial_calibration": app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None,
             "has_apriltag_detections": app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None,
@@ -34,25 +34,25 @@ def send_master_snapshot(app, peer_key) -> None:
         broadcast_pose(
             app,
             app[MASTER_LATEST_DETECTION_STATE_KEY],
-            add_server_send_time=True,
+            add_master_send_time=True,
         )
 
     if app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None:
         broadcast_pose(
             app,
             app[MASTER_LATEST_INITIAL_CALIBRATION_KEY],
-            add_server_send_time=True,
+            add_master_send_time=True,
         )
 
     if app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None:
         broadcast_pose(
             app,
             app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY],
-            add_server_send_time=True,
+            add_master_send_time=True,
         )
 
 
-def broadcast_pose(app, payload: dict, *, add_server_send_time: bool = False) -> bool:
+def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) -> bool:
     client = app.get(MASTER_CLOUD_TRANSPORT_KEY)
     if client is None or not client.is_connected:
         return False
@@ -63,7 +63,7 @@ def broadcast_pose(app, payload: dict, *, add_server_send_time: bool = False) ->
         payload,
         link_name="cloud",
         transport=wire_transport,
-        add_server_send_time=add_server_send_time,
+        add_master_send_time=add_master_send_time,
     )
 
     if use_cloud_udp_transport():

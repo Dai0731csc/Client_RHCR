@@ -26,7 +26,7 @@ def send_master_snapshot(app, peer_key) -> None:
         peer_key,
         {
             "type": MASTER_STREAM_READY_MESSAGE_TYPE,
-            "server_time": current_utc_iso_timestamp(),
+            "master_time": current_utc_iso_timestamp(),
             "has_detection_state": app[MASTER_LATEST_DETECTION_STATE_KEY] is not None,
             "has_initial_calibration": app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None,
             "has_apriltag_detections": app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None,
@@ -38,7 +38,7 @@ def send_master_snapshot(app, peer_key) -> None:
             app,
             peer_key,
             app[MASTER_LATEST_DETECTION_STATE_KEY],
-            add_server_send_time=True,
+            add_master_send_time=True,
         )
 
     if app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None:
@@ -46,7 +46,7 @@ def send_master_snapshot(app, peer_key) -> None:
             app,
             peer_key,
             app[MASTER_LATEST_INITIAL_CALIBRATION_KEY],
-            add_server_send_time=True,
+            add_master_send_time=True,
         )
 
     if app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None:
@@ -54,7 +54,7 @@ def send_master_snapshot(app, peer_key) -> None:
             app,
             peer_key,
             app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY],
-            add_server_send_time=True,
+            add_master_send_time=True,
         )
 
 

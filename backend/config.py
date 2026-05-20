@@ -135,7 +135,7 @@ def _default_tls_ca_path_for_scope(scope: str) -> str:
             CONFIG_DIR / "ca.crt",
         )
     for candidate in candidates:
-        if candidate.is_file():
+        if candidate.is_file() and candidate.stat().st_size > 0:
             return str(candidate.resolve())
     return ""
 

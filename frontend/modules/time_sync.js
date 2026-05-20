@@ -95,24 +95,24 @@
       const clientRecvPerfMs = performance.now();
       const clientRecvWallMs = Date.now();
       const clientSendWallMs = Date.parse(entry.clientSendWallTime);
-      const serverReceiveWallMs = Date.parse(payload.server_receive_time);
-      const serverSendWallMs = Date.parse(payload.server_send_time);
+      const masterReceiveWallMs = Date.parse(payload.master_receive_time);
+      const masterSendWallMs = Date.parse(payload.master_send_time);
 
       const rttMs = clientRecvPerfMs - entry.clientSendPerfMs;
-      const serverProcMs = serverSendWallMs - serverReceiveWallMs;
+      const masterProcMs = masterSendWallMs - masterReceiveWallMs;
       const clientMidWallMs = (clientSendWallMs + clientRecvWallMs) / 2;
-      const serverMidWallMs = (serverReceiveWallMs + serverSendWallMs) / 2;
-      // Positive offset means the client clock is ahead of the server clock.
-      const offsetMs = clientMidWallMs - serverMidWallMs;
+      const masterMidWallMs = (masterReceiveWallMs + masterSendWallMs) / 2;
+      // Positive offset means the client clock is ahead of the master clock.
+      const offsetMs = clientMidWallMs - masterMidWallMs;
 
       samples.push({
         rttMs,
         offsetMs,
-        serverProcMs,
+        masterProcMs,
         clientSendWallMs,
         clientRecvWallMs,
-        serverReceiveWallMs,
-        serverSendWallMs,
+        masterReceiveWallMs,
+        masterSendWallMs,
       });
       if (samples.length > maxSampleCount) {
         samples.shift();
@@ -129,11 +129,11 @@
         seq,
         rttMs,
         offsetMs,
-        serverProcMs,
+        masterProcMs,
         clientSendWallMs,
         clientRecvWallMs,
-        serverReceiveWallMs,
-        serverSendWallMs,
+        masterReceiveWallMs,
+        masterSendWallMs,
         stableOffsetMs,
         stableRttMs,
         bestSampleCount: bestSamples.length,

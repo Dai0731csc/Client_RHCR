@@ -6,11 +6,12 @@ TIMING_FIELD_NAMES = (
     "client_send_time",
     "client_clock_offset_ms",
     "client_clock_rtt_ms",
-    "server_receive_time",
-    "server_send_time",
+    "master_receive_time",
+    "master_send_time",
     "cloud_receive_time",
     "cloud_send_time",
     "control_socket_receive_time",
+    "control_receive_time",
 )
 
 
@@ -18,25 +19,27 @@ def current_utc_iso_timestamp():
     return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-def with_server_receive_time(payload):
+def with_master_receive_time(payload):
     enriched_payload = dict(payload)
-    enriched_payload["server_receive_time"] = current_utc_iso_timestamp()
+    timestamp = current_utc_iso_timestamp()
+    enriched_payload["master_receive_time"] = timestamp
     return enriched_payload
 
 
-def with_server_send_time(payload):
+def with_master_send_time(payload):
     enriched_payload = dict(payload)
-    enriched_payload["server_send_time"] = current_utc_iso_timestamp()
+    timestamp = current_utc_iso_timestamp()
+    enriched_payload["master_send_time"] = timestamp
     return enriched_payload
 
 
 def create_ack_payload(received):
-    server_receive_time = current_utc_iso_timestamp()
-    server_send_time = current_utc_iso_timestamp()
+    master_receive_time = current_utc_iso_timestamp()
+    master_send_time = current_utc_iso_timestamp()
     return {
         "type": "ack",
-        "server_receive_time": server_receive_time,
-        "server_send_time": server_send_time,
+        "master_receive_time": master_receive_time,
+        "master_send_time": master_send_time,
         "received": received,
     }
 
