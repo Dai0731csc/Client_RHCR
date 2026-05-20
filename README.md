@@ -232,6 +232,8 @@ Default camera parameters are in `frontend/state/state.js`, including:
 - `CAMERA_CALIBRATION_BOARD_COLS = 9`
 - `CAMERA_CALIBRATION_SQUARE_SIZE_MM = 20.0`
 
+For the frontend button and settings usage guide, see [FRONTEND_BUTTON_GUIDE.md](./FRONTEND_BUTTON_GUIDE.md) and [FRONTEND_BUTTON_GUIDE_EN.md](./FRONTEND_BUTTON_GUIDE_EN.md).
+
 ## Notes
 
 - WebRTC is only used for realtime uplink from the browser to this client
