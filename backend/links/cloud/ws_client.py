@@ -86,6 +86,7 @@ class CloudWsClient:
         reconnect_delay_s: float = 2.0,
         label: str = "",
         metadata: Optional[dict] = None,
+        connect_headers: Optional[dict] = None,
         tls_verify: bool = True,
         tls_ca_file: str = "",
     ):
@@ -96,6 +97,7 @@ class CloudWsClient:
         self.reconnect_delay_s = reconnect_delay_s
         self.label = label or role
         self.metadata = metadata or {}
+        self.connect_headers = connect_headers or {}
         self.tls_verify = tls_verify
         self.tls_ca_file = tls_ca_file
 
@@ -119,11 +121,20 @@ class CloudWsClient:
     def peer_is_connected(self) -> bool:
         return self._peer_connected.is_set()
 
+    def _refresh_connect_headers(self) -> None:
+        try:
+            from ...services.device_service import build_cloud_connect_headers
+
+            self.connect_headers = build_cloud_connect_headers()
+        except Exception:
+            pass
+
     async def connect(self):
         if self.is_connected:
             return
 
         self._closed = False
+        self._refresh_connect_headers()
         if self._session is None or self._session.closed:
             self._session = aiohttp.ClientSession()
 
@@ -136,6 +147,8 @@ class CloudWsClient:
             )
             if ssl_value is not None:
                 ws_connect_kwargs["ssl"] = ssl_value
+            if self.connect_headers:
+                ws_connect_kwargs["headers"] = self.connect_headers
             self._ws = await self._session.ws_connect(self.url, **ws_connect_kwargs)
             await self._ws.send_str(
                 json.dumps(
@@ -154,10 +167,11 @@ class CloudWsClient:
             registered = False
             deadline = asyncio.get_running_loop().time() + 10.0
             while not registered:
-                if asyncio.get_running_loop().time() > deadline:
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
                     raise TimeoutError(f"relay register timed out for session={self.session_id}")
 
-                msg = await self._ws.receive()
+                msg = await asyncio.wait_for(self._ws.receive(), timeout=remaining)
                 if msg.type != aiohttp.WSMsgType.TEXT:
                     if msg.type != aiohttp.WSMsgType.BINARY:
                         raise _registration_disconnect_error(msg, self._ws)
@@ -256,7 +270,7 @@ class CloudWsClient:
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            logger.warning("[%s] cloud ws reader stopped: %s", self.label, error)
+            logger.warning("[%s] cloud ws reader stopped: %s", self.label, error, exc_info=True)
         finally:
             self._connected.clear()
             self._peer_connected.clear()
@@ -272,7 +286,7 @@ class CloudWsClient:
             await self.close()
             await self.connect()
         except Exception as error:
-            logger.warning("[%s] cloud ws reconnect failed: %s", self.label, error)
+            logger.warning("[%s] cloud ws reconnect failed: %s", self.label, error, exc_info=True)
             asyncio.create_task(self._reconnect(), name=f"cloud-ws-reconnect-{self.label}")
 
     async def send_payload(self, payload: dict):

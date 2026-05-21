@@ -3,6 +3,7 @@ from datetime import datetime
 
 from aiohttp import web
 
+from ..services.device_service import get_client_ip
 from ..services.gripper_service import build_gripper_command_payload, dispatch_gripper_command
 
 
@@ -31,8 +32,17 @@ async def gripper_command_handler(request):
         ) from error
 
     command_payload = build_gripper_command_payload(payload)
+    client_ip = get_client_ip(request.headers, request.remote)
+    _log(
+        f"[{_now_label()}] gripper command received from {client_ip or 'unknown'}: "
+        f"action={command_payload['action']}"
+    )
     dispatch_result = dispatch_gripper_command(request.app, command_payload)
     if not dispatch_result["success"]:
+        _log(
+            f"[{_now_label()}] gripper command rejected: "
+            f"error={dispatch_result['error']} message={dispatch_result['message']}"
+        )
         return web.json_response(
             {
                 "success": False,

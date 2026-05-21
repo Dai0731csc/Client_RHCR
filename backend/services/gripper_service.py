@@ -5,7 +5,9 @@ from typing import Any, Mapping
 from aiohttp import web
 
 from ..links import get_links
+from ..links.local.gripper_udp import send_gripper_command as send_local_gripper_udp
 from ..models import GripperCommandPayload, GripperDispatchResult
+from ..state import GRIPPER_COMMAND_TRANSPORT_KEY
 from ..utils import current_utc_iso_timestamp
 
 GRIPPER_PROTOCOL = "rhcr-oulu.gripper"
@@ -37,7 +39,22 @@ def build_gripper_command_payload(payload: Mapping[str, Any]) -> GripperCommandP
     }
 
 
+def _try_local_gripper_udp(app, command_payload: GripperCommandPayload) -> bool:
+    if app.get(GRIPPER_COMMAND_TRANSPORT_KEY) is None:
+        return False
+    return send_local_gripper_udp(app, command_payload)
+
+
 def dispatch_gripper_command(app, command_payload: GripperCommandPayload) -> GripperDispatchResult:
+    if _try_local_gripper_udp(app, command_payload):
+        return {
+            "success": True,
+            "accepted": True,
+            "status": 200,
+            "error": None,
+            "message": None,
+        }
+
     links = get_links(app)
 
     if not links.outbound.is_connected:
@@ -46,6 +63,15 @@ def dispatch_gripper_command(app, command_payload: GripperCommandPayload) -> Gri
             "accepted": False,
             "error": "gripper_transport_unavailable",
             "message": f"{links.active_outbound} link is not connected",
+            "status": 503,
+        }
+
+    if not links.outbound.is_ready(app):
+        return {
+            "success": False,
+            "accepted": False,
+            "error": "gripper_peer_unavailable",
+            "message": f"{links.active_outbound} link has no connected peer",
             "status": 503,
         }
 

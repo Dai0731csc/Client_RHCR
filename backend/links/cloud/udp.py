@@ -128,6 +128,9 @@ class CloudUdpClient:
 async def _udp_inbound_pump(app, cloud_client: CloudUdpClient) -> None:
     from .pose import send_master_snapshot
 
+    def _send_snapshot(snapshot_app, peer_key) -> None:
+        send_master_snapshot(snapshot_app, peer_key, started_mode="cloud_udp")
+
     try:
         async for payload in cloud_client.iter_payloads():
             message_type = payload.get("type")
@@ -145,7 +148,7 @@ async def _udp_inbound_pump(app, cloud_client: CloudUdpClient) -> None:
                     app,
                     CLOUD_PEER_KEY,
                     payload,
-                    send_snapshot=send_master_snapshot,
+                    send_snapshot=_send_snapshot,
                 )
                 continue
     except asyncio.CancelledError:

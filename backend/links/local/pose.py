@@ -48,7 +48,14 @@ def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) ->
     if transport is None:
         return
 
-    encoded = encode_udp_payload(packet)
+    try:
+        encoded = encode_udp_payload(packet)
+    except ValueError as error:
+        log_pose(
+            f"[{datetime.now().strftime('%H:%M:%S')}] dropped local udp broadcast payload: {error}"
+        )
+        return
+
     for peer_key in list(app[MASTER_SLAVE_PEERS_KEY]):
         try:
             transport.sendto(encoded, peer_key)

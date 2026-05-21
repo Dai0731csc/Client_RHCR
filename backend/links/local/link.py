@@ -2,6 +2,7 @@
 
 from ...runtime_settings import get_runtime_settings
 from ...config import use_local_tcp_transport
+from ...state import MASTER_LOCAL_RELAY_PEERS_KEY, MASTER_SLAVE_PEERS_KEY
 from .gripper_udp import close_local_gripper_udp, send_gripper_command, start_local_gripper_udp
 from .master_udp import close_local_master_udp, start_local_master_udp
 from .pose import broadcast_pose as broadcast_local_udp_pose
@@ -62,3 +63,12 @@ class LocalLink:
     @property
     def is_connected(self) -> bool:
         return self._started
+
+    def is_ready(self, app) -> bool:
+        if not self._started:
+            return False
+        if self._started_mode == "local_tcp":
+            return bool(app.get(MASTER_LOCAL_RELAY_PEERS_KEY))
+        if self._started_mode == "local_udp":
+            return bool(app.get(MASTER_SLAVE_PEERS_KEY))
+        return False

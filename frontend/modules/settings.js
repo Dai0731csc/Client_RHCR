@@ -1,15 +1,6 @@
 (function initSettingsPage() {
   const basePath = (window.SettingsPageConfig && window.SettingsPageConfig.basePath) || "";
-
-  function withBasePath(path) {
-    if (!path) {
-      return basePath || "";
-    }
-    if (!path.startsWith("/")) {
-      path = `/${path}`;
-    }
-    return basePath ? `${basePath}${path}` : path;
-  }
+  const withBasePath = window.SharedBasePath.createWithBasePath(basePath);
 
   const SETTINGS_API = withBasePath("/api/settings");
 
@@ -36,7 +27,6 @@
     cloudHost: document.getElementById("cloud-host"),
     topologySameMachine: document.getElementById("topology-same-machine"),
     topologySameLan: document.getElementById("topology-same-lan"),
-    localLanHost: document.getElementById("local-lan-host"),
     feedback: document.getElementById("save-feedback"),
     configPath: document.getElementById("config-path"),
     effectiveMode: document.getElementById("effective-mode"),
@@ -99,7 +89,6 @@
       transport_mode: getSelectedTransportMode(),
       session_id: el.sessionId.value.trim(),
       cloud_host: el.cloudHost.value.trim(),
-      local_lan_host: el.localLanHost.value.trim(),
       local_topologies: getTopologySelection(),
     };
   }
@@ -110,7 +99,6 @@
     el.sessionId.value = settings.session_id || "default";
     el.cloudHost.value = settings.cloud_host || "";
     setTopologySelection(settings.local_topologies);
-    el.localLanHost.value = settings.local_lan_host || "";
     el.configPath.textContent = settings.config_path || "-";
     el.effectiveMode.textContent = settings.transport_mode || "-";
     el.activeOutbound.textContent = settings.active_outbound || "-";
@@ -220,7 +208,7 @@
     });
   });
 
-  [el.sessionId, el.cloudHost, el.localLanHost].forEach((input) => {
+  [el.sessionId, el.cloudHost].forEach((input) => {
     input.addEventListener("input", scheduleApply);
     input.addEventListener("change", scheduleApply);
   });

@@ -128,16 +128,19 @@
     }
 
     dom.gripperToggleBtn.disabled = state.gripperBusy;
+    const baseLabel =
+      state.gripperState === "open" ? "Close gripper" : "Open gripper";
+    const busyLabel =
+      state.gripperState === "open" ? "Closing gripper..." : "Opening gripper...";
+    const title = state.gripperBusy
+      ? busyLabel
+      : state.gripperLastError
+        ? state.gripperLastError
+        : baseLabel;
     setButtonVisual(
       dom.gripperToggleBtn,
       state.gripperState === "open" ? "gripperClose" : "gripperOpen",
-      state.gripperBusy
-        ? state.gripperState === "open"
-          ? "Closing gripper..."
-          : "Opening gripper..."
-        : state.gripperState === "open"
-          ? "Close gripper"
-          : "Open gripper",
+      title,
       state.gripperBusy
     );
   }

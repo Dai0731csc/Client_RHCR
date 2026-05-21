@@ -2,62 +2,69 @@ import asyncio
 import json
 from datetime import datetime
 
-from ...config import MASTER_UDP_MAX_PACKET_BYTES, use_cloud_udp_transport
-from ...state import MASTER_CLOUD_TRANSPORT_KEY
-from ...state import (
-    MASTER_LATEST_APRILTAG_PAYLOAD_KEY,
-    MASTER_LATEST_DETECTION_STATE_KEY,
-    MASTER_LATEST_INITIAL_CALIBRATION_KEY,
-)
-from ...utils import current_utc_iso_timestamp
+from ...config import MASTER_UDP_MAX_PACKET_BYTES
+from ...state import MASTER_CLOUD_TRANSPORT_KEY, MASTER_SLAVE_PEERS_KEY
 from ..pose_protocol import (
-    MASTER_STREAM_READY_MESSAGE_TYPE,
+    CLOUD_PEER_KEY,
+    build_master_snapshot_payloads,
     decorate_master_payload,
     log_pose,
 )
 
 
-def send_master_snapshot(app, peer_key) -> None:
+def _is_udp_mode(started_mode: str | None) -> bool:
+    return started_mode == "cloud_udp"
+
+
+def _wire_transport_for_mode(started_mode: str | None) -> str:
+    return "udp" if _is_udp_mode(started_mode) else "wss"
+
+
+def _log_send_result(task: asyncio.Task, *, started_mode: str | None) -> None:
+    try:
+        task.result()
+    except asyncio.CancelledError:
+        return
+    except Exception as error:
+        transport = _wire_transport_for_mode(started_mode)
+        log_pose(
+            f"[{datetime.now().strftime('%H:%M:%S')}] [cloud] {transport} send failed: {error}"
+        )
+
+
+def send_master_snapshot(app, peer_key, *, started_mode: str | None) -> None:
     del peer_key
-    broadcast_pose(
-        app,
-        {
-            "type": MASTER_STREAM_READY_MESSAGE_TYPE,
-            "master_time": current_utc_iso_timestamp(),
-            "has_detection_state": app[MASTER_LATEST_DETECTION_STATE_KEY] is not None,
-            "has_initial_calibration": app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None,
-            "has_apriltag_detections": app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None,
-        },
-    )
-
-    if app[MASTER_LATEST_DETECTION_STATE_KEY] is not None:
+    for payload, add_master_send_time in build_master_snapshot_payloads(app):
         broadcast_pose(
             app,
-            app[MASTER_LATEST_DETECTION_STATE_KEY],
-            add_master_send_time=True,
-        )
-
-    if app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None:
-        broadcast_pose(
-            app,
-            app[MASTER_LATEST_INITIAL_CALIBRATION_KEY],
-            add_master_send_time=True,
-        )
-
-    if app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None:
-        broadcast_pose(
-            app,
-            app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY],
-            add_master_send_time=True,
+            payload,
+            started_mode=started_mode,
+            add_master_send_time=add_master_send_time,
         )
 
 
-def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) -> bool:
-    client = app.get(MASTER_CLOUD_TRANSPORT_KEY)
+def cloud_peer_ready(app, client, *, started_mode: str | None) -> bool:
     if client is None or not client.is_connected:
         return False
+    if _is_udp_mode(started_mode):
+        return CLOUD_PEER_KEY in (app.get(MASTER_SLAVE_PEERS_KEY) or {})
+    if started_mode == "cloud_tcp":
+        return bool(getattr(client, "peer_is_connected", False))
+    return False
 
-    wire_transport = "udp" if use_cloud_udp_transport() else "wss"
+
+def broadcast_pose(
+    app,
+    payload: dict,
+    *,
+    started_mode: str | None,
+    add_master_send_time: bool = False,
+) -> bool:
+    client = app.get(MASTER_CLOUD_TRANSPORT_KEY)
+    if not cloud_peer_ready(app, client, started_mode=started_mode):
+        return False
+
+    wire_transport = _wire_transport_for_mode(started_mode)
     packet = decorate_master_payload(
         app,
         payload,
@@ -66,7 +73,7 @@ def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) ->
         add_master_send_time=add_master_send_time,
     )
 
-    if use_cloud_udp_transport():
+    if _is_udp_mode(started_mode):
         try:
             encoded_size = len(
                 json.dumps(packet, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -83,5 +90,8 @@ def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) ->
             return False
 
     loop = asyncio.get_running_loop()
-    loop.create_task(client.send_payload(packet))
+    task = loop.create_task(client.send_payload(packet))
+    task.add_done_callback(
+        lambda completed_task: _log_send_result(completed_task, started_mode=started_mode)
+    )
     return True

@@ -12,6 +12,7 @@ from ...config import (
     use_cloud_tcp_transport,
 )
 from ...runtime_settings import get_runtime_settings
+from ...services.device_service import build_cloud_connect_headers
 from ...state import MASTER_CLOUD_PUMP_TASK_KEY, MASTER_CLOUD_TRANSPORT_KEY
 from ..pose_protocol import (
     CLOUD_PEER_KEY,
@@ -31,6 +32,9 @@ def _log(message: str) -> None:
 async def _tcp_inbound_pump(app, cloud_client: CloudWsClient) -> None:
     from .pose import send_master_snapshot
 
+    def _send_snapshot(snapshot_app, peer_key) -> None:
+        send_master_snapshot(snapshot_app, peer_key, started_mode="cloud_tcp")
+
     try:
         async for payload in cloud_client.iter_payloads():
             message_type = payload.get("type")
@@ -45,7 +49,7 @@ async def _tcp_inbound_pump(app, cloud_client: CloudWsClient) -> None:
                     app,
                     CLOUD_PEER_KEY,
                     payload,
-                    send_snapshot=send_master_snapshot,
+                    send_snapshot=_send_snapshot,
                 )
                 continue
     except asyncio.CancelledError:
@@ -73,6 +77,7 @@ async def start_cloud_tcp(app) -> None:
         reconnect_delay_s=get_relay_reconnect_delay_s(),
         label="TeleProgram",
         metadata={"transport_mode": get_transport_mode()},
+        connect_headers=build_cloud_connect_headers(),
         tls_verify=get_runtime_tls_verify(),
         tls_ca_file=get_runtime_tls_ca_file(),
     )

@@ -6,6 +6,7 @@
       return;
     }
     state.gripperBusy = true;
+    state.gripperLastError = "";
     ns.setGripperUI?.();
 
     try {
@@ -25,9 +26,11 @@
         throw new Error(result.message || result.error || `gripper command failed with ${response.status}`);
       }
       state.gripperState = action === "open" ? "open" : "closed";
+      state.gripperLastError = "";
       state.gripperBusy = false;
       ns.setGripperUI?.();
     } catch (error) {
+      state.gripperLastError = error?.message || "Gripper command failed";
       state.gripperBusy = false;
       ns.setGripperUI?.();
       console.warn("Failed to send gripper command:", error);

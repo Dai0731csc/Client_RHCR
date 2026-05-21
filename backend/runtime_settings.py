@@ -16,6 +16,7 @@ from .config import (
     _as_bool,
     normalize_transport_mode,
 )
+from .settings_codec import normalize_transport_modes, resolve_status_selection, transport_modes_for_mode
 
 _RUNTIME: "ClientRuntimeSettings | None" = None
 
@@ -28,40 +29,6 @@ def _read_cloud_file() -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"{CLOUD_CONFIG_PATH} must contain a JSON object")
     return data
-
-
-def _resolve_status_selection(selections, *, selection_name: str, fallback: str) -> str:
-    if isinstance(selections, dict):
-        enabled_items: list[str] = []
-        for item_id, item_data in selections.items():
-            status = item_data.get("status") if isinstance(item_data, dict) else item_data
-            if bool(status):
-                enabled_items.append(str(item_id).strip())
-        enabled_items = [item_id for item_id in enabled_items if item_id]
-        if len(enabled_items) > 1:
-            raise ValueError(
-                f"{selection_name} has multiple entries with status=true: "
-                + ", ".join(enabled_items)
-            )
-        if len(enabled_items) == 1:
-            return enabled_items[0]
-    return fallback
-
-
-def _transport_modes_for_mode(mode: str) -> dict[str, bool]:
-    normalized = normalize_transport_mode(mode)
-    if normalized not in SUPPORTED_TRANSPORT_MODES:
-        raise ValueError(f"Unsupported transport_mode={mode!r}")
-    return {key: key == normalized for key in SUPPORTED_TRANSPORT_MODES}
-
-
-def _normalize_transport_modes(raw_modes: Any) -> dict[str, bool]:
-    base = {key: bool(DEFAULT_TRANSPORT_MODES.get(key)) for key in SUPPORTED_TRANSPORT_MODES}
-    if isinstance(raw_modes, dict):
-        for key in SUPPORTED_TRANSPORT_MODES:
-            if key in raw_modes:
-                base[key] = _as_bool(raw_modes.get(key), default=False)
-    return base
 
 
 class ClientRuntimeSettings:
@@ -78,8 +45,10 @@ class ClientRuntimeSettings:
 
     @property
     def transport_mode(self) -> str:
-        modes = _normalize_transport_modes(
-            self._data.get("transport_modes") or DEFAULT_TRANSPORT_MODES
+        modes = normalize_transport_modes(
+            self._data.get("transport_modes") or DEFAULT_TRANSPORT_MODES,
+            supported_transport_modes=SUPPORTED_TRANSPORT_MODES,
+            default_transport_modes=DEFAULT_TRANSPORT_MODES,
         )
         enabled = [mode for mode, on in modes.items() if on]
         if len(enabled) == 1:
@@ -92,7 +61,7 @@ class ClientRuntimeSettings:
 
     @property
     def local_topology(self) -> str:
-        topology = _resolve_status_selection(
+        topology = resolve_status_selection(
             self._data.get("local_topologies"),
             selection_name="local_topologies",
             fallback="same_machine",
@@ -128,10 +97,6 @@ class ClientRuntimeSettings:
     @property
     def reconnect_delay_s(self) -> float:
         return float(self._data.get("reconnect_delay_s") or 2.0)
-
-    @property
-    def local_lan_host(self) -> str:
-        return str(self._data.get("local_lan_host") or "").strip()
 
     @property
     def master_udp_port(self) -> int:
@@ -204,9 +169,7 @@ class ClientRuntimeSettings:
 
     @property
     def cloud_udp_port(self) -> int:
-        if self.transport_mode == "cloud_udp" and self.cloud_host:
-            return int(self._data.get("udp_port") or self.cloud_udp_port)
-        return int(self._data.get("udp_port") or self.cloud_udp_port)
+        return int(self._data.get("udp_port") or self._data.get("cloud_udp_port") or 8440)
 
     def use_cloud_tcp_transport(self) -> bool:
         return self.transport_mode == "cloud_tcp"
@@ -239,14 +202,15 @@ class ClientRuntimeSettings:
     def apply_patch(self, patch: dict[str, Any]) -> None:
         if "transport_mode" in patch and patch["transport_mode"]:
             mode = normalize_transport_mode(str(patch["transport_mode"]).strip())
-            self._data["transport_modes"] = _transport_modes_for_mode(mode)
+            self._data["transport_modes"] = transport_modes_for_mode(
+                mode,
+                supported_transport_modes=SUPPORTED_TRANSPORT_MODES,
+            )
 
         if "session_id" in patch:
             self._data["session_id"] = str(patch.get("session_id") or "default").strip() or "default"
         if "cloud_host" in patch:
             self._data["cloud_host"] = str(patch.get("cloud_host") or "").strip()
-        if "local_lan_host" in patch:
-            self._data["local_lan_host"] = str(patch.get("local_lan_host") or "").strip()
 
         local_topologies = patch.get("local_topologies")
         if isinstance(local_topologies, dict):
@@ -267,7 +231,11 @@ class ClientRuntimeSettings:
             local_topologies = {"same_machine": True, "same_lan": False}
         return {
             "transport_mode": self.transport_mode,
-            "transport_modes": _normalize_transport_modes(self._data.get("transport_modes")),
+            "transport_modes": normalize_transport_modes(
+                self._data.get("transport_modes"),
+                supported_transport_modes=SUPPORTED_TRANSPORT_MODES,
+                default_transport_modes=DEFAULT_TRANSPORT_MODES,
+            ),
             "session_id": self.session_id,
             "cloud_host": self.cloud_host,
             "relay_url": self.relay_url,
@@ -277,7 +245,6 @@ class ClientRuntimeSettings:
                 "same_machine": _as_bool(local_topologies.get("same_machine"), default=True),
                 "same_lan": _as_bool(local_topologies.get("same_lan"), default=False),
             },
-            "local_lan_host": self.local_lan_host,
             "active_outbound": self.active_outbound_name(),
             "config_path": str(CLOUD_CONFIG_PATH),
             "requires_restart": False,

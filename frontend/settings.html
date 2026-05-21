@@ -61,11 +61,6 @@
         </div>
       </div>
 
-      <label class="field">
-        <span>Local LAN Host</span>
-        <input id="local-lan-host" type="text" placeholder="192.168.x.x" autocomplete="off" spellcheck="false">
-      </label>
-
       <p id="save-feedback" class="save-feedback" aria-live="polite"></p>
     </div>
 
@@ -86,6 +81,7 @@
       basePath: {{ base_path|tojson }}
     };
   </script>
+  <script src="{{ static_url_prefix }}/modules/base_path.js"></script>
   <script src="{{ static_url_prefix }}/modules/settings.js"></script>
 </body>
 </html>

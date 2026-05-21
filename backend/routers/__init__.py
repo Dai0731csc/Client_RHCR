@@ -11,12 +11,13 @@ from .webrtc import (
 )
 from .ws_publish import apriltag_publish_websocket_handler
 from .gripper import gripper_command_handler
-from .page import build_template_context, camera_page, settings_page
+from .page import app_path, build_template_context, camera_page, settings_page
 from .settings import settings_get_handler, settings_update_handler
 from .relay import local_relay_websocket_handler
 
 __all__ = [
     "apriltag_publish_websocket_handler",
+    "app_path",
     "build_template_context",
     "calibration_publish_websocket_handler",
     "camera_page",

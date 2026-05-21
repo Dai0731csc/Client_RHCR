@@ -42,6 +42,14 @@
       pending.clear();
     }
 
+    function reset() {
+      rejectAllPending("Time sync state reset");
+      nextSeq = 0;
+      samples.length = 0;
+      stableOffsetMs = Number.NaN;
+      stableRttMs = Number.NaN;
+    }
+
     function sendPing(sendFn) {
       const seq = nextSeq;
       nextSeq += 1;
@@ -174,6 +182,7 @@
       handleAck,
       syncClock,
       rejectAllPending,
+      reset,
     };
   }
 

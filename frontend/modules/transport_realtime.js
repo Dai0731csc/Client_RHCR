@@ -34,11 +34,34 @@
     state[readyKey] = new Promise((resolve, reject) => {
       const protocol = window.location.protocol === "https:" ? "wss" : "ws";
       const socket = new WebSocket(`${protocol}://${location.host}${path}`);
+      let settled = false;
+
+      function settleResolve(value) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        resolve(value);
+      }
+
+      function settleReject(error) {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        reject(error);
+      }
+
+      function settleRejectAsync(error) {
+        window.setTimeout(() => {
+          settleReject(error);
+        }, 0);
+      }
 
       socket.onopen = () => {
         state[socketKey] = socket;
         state[readyKey] = null;
-        resolve(socket);
+        settleResolve(socket);
       };
 
       if (onMessage) {
@@ -46,14 +69,19 @@
       }
 
       socket.onerror = () => {
+        if (state[socketKey] === socket) {
+          state[socketKey] = null;
+        }
         state[readyKey] = null;
-        reject(new Error(errorMessage));
+        settleRejectAsync(new Error(errorMessage));
       };
 
       socket.onclose = () => {
         if (state[socketKey] === socket) {
           state[socketKey] = null;
         }
+        state[readyKey] = null;
+        settleRejectAsync(new Error(`${errorMessage}: socket closed before ready`));
 
         if (onClose) {
           onClose();
@@ -140,7 +168,38 @@
 
     const pending = state.pendingRealtimeAnswer;
     state.pendingRealtimeAnswer = null;
+    window.clearTimeout(pending.timeoutId);
     pending.reject(new Error(message));
+  }
+
+  function waitForRealtimeAnswer(signalingSocket, peerConnection, timeoutMs = 7000) {
+    return new Promise((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        if (state.pendingRealtimeAnswer?.timeoutId === timeoutId) {
+          state.pendingRealtimeAnswer = null;
+        }
+        reject(new Error("WebRTC signaling answer timed out"));
+      }, timeoutMs);
+
+      state.pendingRealtimeAnswer = {
+        resolve: (payload) => {
+          window.clearTimeout(timeoutId);
+          resolve(payload);
+        },
+        reject: (error) => {
+          window.clearTimeout(timeoutId);
+          reject(error);
+        },
+        timeoutId,
+      };
+
+      signalingSocket.send(
+        JSON.stringify({
+          type: "webrtc_offer",
+          sdp: peerConnection.localDescription.sdp,
+        })
+      );
+    });
   }
 
   function markWebRTCFailure(error, logKey = "apriltag_detection") {
@@ -173,6 +232,7 @@
     if (payload.type === "webrtc_answer" && state.pendingRealtimeAnswer) {
       const pending = state.pendingRealtimeAnswer;
       state.pendingRealtimeAnswer = null;
+      window.clearTimeout(pending.timeoutId);
       pending.resolve(payload);
       return;
     }
@@ -253,15 +313,7 @@
     await peerConnection.setLocalDescription(offer);
     await waitForIceGatheringComplete(peerConnection);
 
-    const answerPayload = await new Promise((resolve, reject) => {
-      state.pendingRealtimeAnswer = { resolve, reject };
-      signalingSocket.send(
-        JSON.stringify({
-          type: "webrtc_offer",
-          sdp: peerConnection.localDescription.sdp,
-        })
-      );
-    });
+    const answerPayload = await waitForRealtimeAnswer(signalingSocket, peerConnection);
 
     await peerConnection.setRemoteDescription({
       type: "answer",

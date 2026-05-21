@@ -14,6 +14,7 @@
   }
 
   function resetTimeSyncState() {
+    state.timeSyncClient.reset();
     state.timeSyncInProgress = false;
     state.lastTimeSyncResult = null;
     ns.setCameraUI(Boolean(state.stream));

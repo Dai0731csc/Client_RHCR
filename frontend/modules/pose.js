@@ -343,9 +343,7 @@
   async function syncCalibrationFromBackend() {
     const response = await fetch(constants.DEVICE_PROFILE_API_PATH, {
       method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
+      headers: { Accept: "application/json" },
     });
     const result = await response.json();
     if (!response.ok || !result.success) {

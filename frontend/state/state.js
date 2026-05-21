@@ -1,15 +1,6 @@
 (function initCameraState(ns) {
   const basePath = (window.CameraPageConfig && window.CameraPageConfig.basePath) || "";
-
-  function withBasePath(path) {
-    if (!path) {
-      return basePath || "";
-    }
-    if (!path.startsWith("/")) {
-      path = `/${path}`;
-    }
-    return basePath ? `${basePath}${path}` : path;
-  }
+  const withBasePath = window.SharedBasePath.createWithBasePath(basePath);
 
   const dom = {
     video: document.getElementById("video"),
@@ -63,6 +54,7 @@
     lastSentDetectionPacketVersion: 0,
     gripperState: "closed",
     gripperBusy: false,
+    gripperLastError: "",
     apriltagDetector: new ApriltagDetector(),
     timeSyncClient: window.SharedTimeSync.createTimeSyncClient(),
   };

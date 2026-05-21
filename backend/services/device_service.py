@@ -5,10 +5,13 @@ from pathlib import Path
 from typing import Mapping, Optional, cast
 
 from ..models import CameraCalibrationResult, DeviceProfile
+from .geo_service import UNKNOWN_REGION, lookup_region_for_host, resolve_device_region
 
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data" / "devices"
 SAFE_FILENAME_PATTERN = re.compile(r"[^0-9A-Za-z_.-]+")
+
+_host_region = ""
 
 
 def utc_now() -> str:
@@ -27,31 +30,34 @@ def get_client_ip(headers: Mapping[str, str], remote: Optional[str]) -> str:
     return remote or ""
 
 
-def get_client_region(headers: Mapping[str, str]) -> str:
-    region = headers.get("X-Region", "").strip()
-    if region:
-        return region
+def ensure_host_region() -> str:
+    """Resolve and cache region for the computer running TeleProgram (not the phone browser)."""
+    global _host_region
+    if _host_region and _host_region != UNKNOWN_REGION:
+        return _host_region
+    _host_region = lookup_region_for_host()
+    return _host_region
 
-    country_region = headers.get("X-Vercel-IP-Country-Region", "").strip()
-    country = headers.get("X-Vercel-IP-Country", "").strip()
-    if country_region and country:
-        return f"{country}-{country_region}"
-    if country_region:
-        return country_region
 
-    cf_country = headers.get("CF-IPCountry", "").strip()
-    if cf_country:
-        return cf_country
+def get_host_region() -> str:
+    return _host_region or UNKNOWN_REGION
 
-    appengine_region = headers.get("X-AppEngine-Region", "").strip()
-    if appengine_region:
-        return appengine_region
 
-    appengine_country = headers.get("X-AppEngine-Country", "").strip()
-    if appengine_country:
-        return appengine_country
+def build_cloud_connect_headers() -> dict[str, str]:
+    region = ensure_host_region()
+    if region and region != UNKNOWN_REGION:
+        return {"X-Region": region}
+    return {}
 
-    return "unknown"
+
+def resolve_region(*, incoming: str, existing: str | None = None) -> str:
+    incoming = (incoming or "").strip()
+    existing = (existing or "").strip()
+    if incoming and incoming != UNKNOWN_REGION:
+        return incoming
+    if existing and existing != UNKNOWN_REGION:
+        return existing
+    return UNKNOWN_REGION
 
 
 def safe_device_filename(ip: str) -> str:
@@ -76,7 +82,7 @@ class DeviceRegistry:
         now = utc_now()
 
         data["ip"] = ip or data.get("ip") or "unknown"
-        data["region"] = region or data.get("region") or "unknown"
+        data["region"] = resolve_region(incoming=region, existing=data.get("region"))
         data["last_seen_at"] = now
         data.setdefault("first_seen_at", now)
 
@@ -97,8 +103,12 @@ class DeviceRegistry:
         calibration_result: Optional[CameraCalibrationResult] = None,
     ) -> DeviceProfile:
         ip = get_client_ip(request.headers, request.remote)
-        region = get_client_region(request.headers)
-        return self.upsert_device(ip=ip, region=region, calibration_result=calibration_result)
+        region = resolve_device_region(headers=request.headers, ip=ip)
+        return self.upsert_device(
+            ip=ip,
+            region=region,
+            calibration_result=calibration_result,
+        )
 
     def get_device(self, *, ip: str) -> DeviceProfile:
         path = self.root / safe_device_filename(ip)

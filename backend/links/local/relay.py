@@ -5,17 +5,11 @@ from datetime import datetime
 from aiohttp import web
 
 from ...config import get_relay_session_id, get_relay_token, use_local_tcp_transport
-from ...state import (
-    MASTER_LATEST_APRILTAG_PAYLOAD_KEY,
-    MASTER_LATEST_DETECTION_STATE_KEY,
-    MASTER_LATEST_INITIAL_CALIBRATION_KEY,
-    MASTER_LOCAL_RELAY_PEERS_KEY,
-)
-from ...utils import current_utc_iso_timestamp
+from ...state import MASTER_LOCAL_RELAY_PEERS_KEY
 from ..pose_protocol import (
+    build_master_snapshot_payloads,
     decorate_master_payload,
     handle_slave_control_message,
-    MASTER_STREAM_READY_MESSAGE_TYPE,
     peer_label,
     remove_slave_peer,
 )
@@ -82,7 +76,8 @@ async def _broadcast_local_relay(peers: list[tuple[tuple[str, int], object]], pa
     for peer_key, ws in peers:
         try:
             await _send_to_peer(ws, packet)
-        except Exception:
+        except Exception as error:
+            _log(f"[local] relay send failed for {peer_label(peer_key)}: {error}")
             stale_peers.append(peer_key)
     return stale_peers
 
@@ -122,24 +117,7 @@ def send_local_relay_snapshot(app, peer_key) -> None:
     if ws is None or ws.closed:
         return
 
-    payloads: list[tuple[dict, bool]] = [
-        (
-            {
-                "type": MASTER_STREAM_READY_MESSAGE_TYPE,
-                "master_time": current_utc_iso_timestamp(),
-                "has_detection_state": app[MASTER_LATEST_DETECTION_STATE_KEY] is not None,
-                "has_initial_calibration": app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None,
-                "has_apriltag_detections": app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None,
-            },
-            False,
-        )
-    ]
-    if app[MASTER_LATEST_DETECTION_STATE_KEY] is not None:
-        payloads.append((app[MASTER_LATEST_DETECTION_STATE_KEY], True))
-    if app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None:
-        payloads.append((app[MASTER_LATEST_INITIAL_CALIBRATION_KEY], True))
-    if app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None:
-        payloads.append((app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY], True))
+    payloads = build_master_snapshot_payloads(app)
 
     async def _run() -> None:
         for payload, add_master_send_time in payloads:
@@ -152,7 +130,8 @@ def send_local_relay_snapshot(app, peer_key) -> None:
             )
             try:
                 await _send_to_peer(ws, packet)
-            except Exception:
+            except Exception as error:
+                _log(f"[local] relay snapshot failed for {peer_label(peer_key)}: {error}")
                 unregister_local_relay_peer(app, peer_key, reason="snapshot_failed")
                 break
 

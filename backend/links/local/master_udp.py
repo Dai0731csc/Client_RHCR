@@ -13,48 +13,14 @@ from .pose import send_pose_packet
 
 
 def send_master_snapshot(app, peer_key) -> None:
-    from ..pose_protocol import MASTER_STREAM_READY_MESSAGE_TYPE
-    from ...state import (
-        MASTER_LATEST_APRILTAG_PAYLOAD_KEY,
-        MASTER_LATEST_DETECTION_STATE_KEY,
-        MASTER_LATEST_INITIAL_CALIBRATION_KEY,
-    )
-    from ...utils import current_utc_iso_timestamp
+    from ..pose_protocol import build_master_snapshot_payloads
 
-    send_pose_packet(
-        app,
-        peer_key,
-        {
-            "type": MASTER_STREAM_READY_MESSAGE_TYPE,
-            "master_time": current_utc_iso_timestamp(),
-            "has_detection_state": app[MASTER_LATEST_DETECTION_STATE_KEY] is not None,
-            "has_initial_calibration": app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None,
-            "has_apriltag_detections": app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None,
-        },
-    )
-
-    if app[MASTER_LATEST_DETECTION_STATE_KEY] is not None:
+    for payload, add_master_send_time in build_master_snapshot_payloads(app):
         send_pose_packet(
             app,
             peer_key,
-            app[MASTER_LATEST_DETECTION_STATE_KEY],
-            add_master_send_time=True,
-        )
-
-    if app[MASTER_LATEST_INITIAL_CALIBRATION_KEY] is not None:
-        send_pose_packet(
-            app,
-            peer_key,
-            app[MASTER_LATEST_INITIAL_CALIBRATION_KEY],
-            add_master_send_time=True,
-        )
-
-    if app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] is not None:
-        send_pose_packet(
-            app,
-            peer_key,
-            app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY],
-            add_master_send_time=True,
+            payload,
+            add_master_send_time=add_master_send_time,
         )
 
 

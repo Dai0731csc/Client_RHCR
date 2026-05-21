@@ -2,6 +2,8 @@ import json
 import ssl
 from pathlib import Path
 
+from .settings_codec import as_bool, resolve_status_selection
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = BASE_DIR / "frontend"
 PAGES_DIR = FRONTEND_DIR
@@ -28,18 +30,7 @@ DEFAULT_TRANSPORT_MODES = {
 
 
 def _as_bool(value, *, default: bool = False) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return bool(value)
-    text = str(value).strip().lower()
-    if text in {"1", "true", "yes", "on"}:
-        return True
-    if text in {"0", "false", "no", "off"}:
-        return False
-    return default
+    return as_bool(value, default=default)
 
 
 def _load_cloud_file() -> dict:
@@ -70,33 +61,8 @@ def _cfg(key: str, default):
     return default
 
 
-def _resolve_status_selection(
-    selections,
-    *,
-    selection_name: str,
-    fallback: str,
-) -> str:
-    if isinstance(selections, dict):
-        enabled_items: list[str] = []
-        for item_id, item_data in selections.items():
-            status = item_data.get("status") if isinstance(item_data, dict) else item_data
-            if bool(status):
-                enabled_items.append(str(item_id).strip())
-
-        enabled_items = [item_id for item_id in enabled_items if item_id]
-        if len(enabled_items) > 1:
-            raise ValueError(
-                f"{CLOUD_CONFIG_PATH} has multiple {selection_name} entries with status=true: "
-                + ", ".join(enabled_items)
-            )
-        if len(enabled_items) == 1:
-            return enabled_items[0]
-
-    return fallback
-
-
 def _resolve_local_topology() -> str:
-    topology = _resolve_status_selection(
+    topology = resolve_status_selection(
         _CLOUD_FILE.get("local_topologies"),
         selection_name="local_topologies",
         fallback="same_machine",
@@ -182,7 +148,7 @@ def _resolve_tls_ca_file_for_transport_mode(transport_mode: str) -> str:
     return _default_tls_ca_path_for_scope(scope)
 
 
-TRANSPORT_MODE = _resolve_status_selection(
+TRANSPORT_MODE = resolve_status_selection(
     _CLOUD_FILE.get("transport_modes") or DEFAULT_TRANSPORT_MODES,
     selection_name="transport_modes",
     fallback=DEFAULT_TRANSPORT_MODE,
@@ -195,11 +161,10 @@ if TRANSPORT_MODE and TRANSPORT_MODE not in SUPPORTED_TRANSPORT_MODES:
     )
 
 LOCAL_TOPOLOGY = _resolve_local_topology()
-LOCAL_LAN_HOST = str(_cloud_top("local_lan_host") or "").strip()
 
 _cloud_host = str(_cloud_top("cloud_host") or "").strip()
-_cloud_tcp_port = int(_cloud_top("cloud_tcp_port"))
-_cloud_udp_port = int(_cloud_top("cloud_udp_port"))
+_cloud_tcp_port = int(_cfg("cloud_tcp_port", 8443))
+_cloud_udp_port = int(_cfg("cloud_udp_port", 8440))
 _cloud_tls_raw = _CLOUD_FILE.get("cloud_use_tls")
 # Default HTTPS/WSS; omitting the key is equivalent to true; set ``cloud_use_tls: false`` for plain WS debugging.
 _cloud_use_tls = _as_bool(_cloud_tls_raw, default=True)
@@ -226,16 +191,16 @@ else:
     CLOUD_BASE_URL = ""
     RELAY_URL = ""
 
-RELAY_SESSION_ID = str(_cloud_top("session_id") or "")
+RELAY_SESSION_ID = str(_cloud_top("session_id") or "default")
 RELAY_TOKEN = str(_cloud_top("token") or "")
-RELAY_RECONNECT_DELAY_S = float(_cloud_top("reconnect_delay_s"))
+RELAY_RECONNECT_DELAY_S = float(_cfg("reconnect_delay_s", 2.0))
 
 if TRANSPORT_MODE == "cloud_udp" and _cloud_host:
     CLOUD_UDP_HOST = _cloud_host
-    CLOUD_UDP_PORT = int(_cloud_top("udp_port") or _cloud_udp_port)
+    CLOUD_UDP_PORT = int(_cfg("udp_port", _cloud_udp_port))
 else:
     CLOUD_UDP_HOST = str(_cfg("udp_host", _cloud_host or "127.0.0.1")).strip()
-    CLOUD_UDP_PORT = int(_cloud_top("udp_port"))
+    CLOUD_UDP_PORT = int(_cfg("udp_port", _cloud_udp_port))
 
 _master_udp_host = str(_cloud_top("master_udp_host") or "").strip()
 if not _master_udp_host:

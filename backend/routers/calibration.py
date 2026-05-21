@@ -156,6 +156,7 @@ async def camera_calibration_handler(request):
             status=503,
         )
     except Exception as error:
+        _log(f"camera calibration failed: {error}")
         return web.json_response(
             {
                 "success": False,
@@ -268,6 +269,7 @@ async def camera_calibration_validate_handler(request):
             status=503,
         )
     except Exception as error:
+        _log(f"camera calibration validation failed: {error}")
         return web.json_response(
             {
                 "success": False,
