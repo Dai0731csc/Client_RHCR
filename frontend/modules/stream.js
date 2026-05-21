@@ -67,6 +67,10 @@
 (function initCameraStream(ns) {
   const { dom, state, constants } = ns;
 
+  function detectionSendIntervalMs() {
+    return Math.max(1, Math.round(1000 / constants.CAMERA_TARGET_FRAME_RATE));
+  }
+
   function getOverlayContext() {
     if (!dom.overlayCanvas) {
       return null;
@@ -265,7 +269,7 @@
       });
 
       const elapsedLoopMs = Date.now() - loopStartMs;
-      await ns.sleep(Math.max(constants.DETECTION_SEND_INTERVAL_MS - elapsedLoopMs, 0));
+      await ns.sleep(Math.max(detectionSendIntervalMs() - elapsedLoopMs, 0));
     }
   }
 
@@ -342,6 +346,16 @@
     startContinuousDetection();
   }
 
+  function buildCameraVideoConstraints(facingMode) {
+    const fps = constants.CAMERA_TARGET_FRAME_RATE;
+    return {
+      facingMode,
+      frameRate: { ideal: fps, max: fps },
+      width: { ideal: 640 },
+      height: { ideal: 480 },
+    };
+  }
+
   async function openCamera() {
     if (!window.isSecureContext) {
       return;
@@ -353,19 +367,26 @@
 
     try {
       state.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: "environment" } },
+        video: buildCameraVideoConstraints({ exact: "environment" }),
         audio: false,
       });
     } catch (_primaryError) {
       try {
         state.stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment" },
+          video: buildCameraVideoConstraints("environment"),
           audio: false,
         });
       } catch (_error) {
         return;
       }
     }
+
+    const trackSettings = state.stream?.getVideoTracks?.()[0]?.getSettings?.() || {};
+    console.info(
+      "[camera] opened",
+      `frameRate=${trackSettings.frameRate ?? "?"}`,
+      `size=${trackSettings.width ?? "?"}x${trackSettings.height ?? "?"}`
+    );
 
     dom.video.srcObject = state.stream;
     if (!dom.video.videoWidth || !dom.video.videoHeight) {

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import errno
 import ssl
 from typing import AsyncIterator, Optional
 from urllib.parse import urlsplit
@@ -57,6 +58,24 @@ def _registration_disconnect_error(
     }:
         return RuntimeError("relay server disconnected before registration completed")
     return RuntimeError(f"unexpected websocket message before registration: {msg.type}")
+
+
+def _find_cause(error: BaseException, predicate) -> BaseException | None:
+    current = error
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        if predicate(current):
+            return current
+        current = current.__cause__ or current.__context__
+    return None
+
+
+def _is_connection_refused_error(error: BaseException) -> bool:
+    return _find_cause(
+        error,
+        lambda exc: isinstance(exc, OSError) and getattr(exc, "errno", None) == errno.ECONNREFUSED,
+    ) is not None
 
 
 def _build_client_ssl_value(*, url: str, tls_verify: bool, tls_ca_file: str) -> bool | ssl.SSLContext | None:
@@ -230,6 +249,13 @@ class CloudWsClient:
                     "(or tls_ca_file as a fallback) to the CA certificate, "
                     "or set cloud_tls_verify to false for temporary testing."
                 ) from error
+            if isinstance(error, aiohttp.ClientConnectorError) and _is_connection_refused_error(error):
+                raise RuntimeError(
+                    "relay TCP connect failed for "
+                    f"{self.url}. The remote host refused the connection, which usually means "
+                    "the cloud relay process is not listening on that host/port, the port is wrong, "
+                    "or a firewall/NAT rule is blocking it."
+                ) from error
             raise
 
         self._connected.set()
@@ -286,7 +312,24 @@ class CloudWsClient:
             await self.close()
             await self.connect()
         except Exception as error:
-            logger.warning("[%s] cloud ws reconnect failed: %s", self.label, error, exc_info=True)
+            expected_network_error = (
+                isinstance(error, aiohttp.ClientConnectorError)
+                or _is_connection_refused_error(error)
+                or (
+                    isinstance(error, RuntimeError)
+                    and (
+                        str(error).startswith("relay TCP connect failed for ")
+                        or str(error).startswith("relay TLS handshake failed for ")
+                        or str(error).startswith("relay TLS certificate verification failed for ")
+                    )
+                )
+            )
+            logger.warning(
+                "[%s] cloud ws reconnect failed: %s",
+                self.label,
+                error,
+                exc_info=not expected_network_error,
+            )
             asyncio.create_task(self._reconnect(), name=f"cloud-ws-reconnect-{self.label}")
 
     async def send_payload(self, payload: dict):

@@ -48,7 +48,8 @@ async def install_links(app):
             f"transport_mode={settings.transport_mode} error={exc}"
         )
 
-    if get_runtime_settings().local_topology == "same_machine":
+    settings = get_runtime_settings()
+    if settings.local_topology == "same_machine" and not settings.use_cloud_profile():
         try:
             await start_local_gripper_udp(app)
         except Exception as exc:

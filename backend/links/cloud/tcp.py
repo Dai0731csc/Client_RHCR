@@ -13,6 +13,7 @@ from ...config import (
 )
 from ...runtime_settings import get_runtime_settings
 from ...services.device_service import build_cloud_connect_headers
+from ...services.device_service import get_host_label
 from ...state import MASTER_CLOUD_PUMP_TASK_KEY, MASTER_CLOUD_TRANSPORT_KEY
 from ..pose_protocol import (
     CLOUD_PEER_KEY,
@@ -76,7 +77,10 @@ async def start_cloud_tcp(app) -> None:
         token=get_relay_token(),
         reconnect_delay_s=get_relay_reconnect_delay_s(),
         label="TeleProgram",
-        metadata={"transport_mode": get_transport_mode()},
+        metadata={
+            "transport_mode": get_transport_mode(),
+            "client_label": get_host_label(),
+        },
         connect_headers=build_cloud_connect_headers(),
         tls_verify=get_runtime_tls_verify(),
         tls_ca_file=get_runtime_tls_ca_file(),

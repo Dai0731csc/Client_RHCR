@@ -1,5 +1,6 @@
 import json
 import re
+import socket
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Optional, cast
@@ -28,6 +29,14 @@ def get_client_ip(headers: Mapping[str, str], remote: Optional[str]) -> str:
         return real_ip.strip()
 
     return remote or ""
+
+
+def get_host_label() -> str:
+    try:
+        label = socket.gethostname().strip()
+    except OSError:
+        label = ""
+    return label or "unknown"
 
 
 def ensure_host_region() -> str:

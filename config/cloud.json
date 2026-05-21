@@ -7,8 +7,8 @@
   "cloud_udp_port": 8440,
   "transport_modes": {
     "local_tcp": false,
-    "local_udp": false,
     "cloud_tcp": true,
+    "local_udp": false,
     "cloud_udp": false
   },
   "local_topologies": {

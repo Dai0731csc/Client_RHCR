@@ -46,7 +46,9 @@ def _try_local_gripper_udp(app, command_payload: GripperCommandPayload) -> bool:
 
 
 def dispatch_gripper_command(app, command_payload: GripperCommandPayload) -> GripperDispatchResult:
-    if _try_local_gripper_udp(app, command_payload):
+    links = get_links(app)
+
+    if links.active_outbound == "local" and _try_local_gripper_udp(app, command_payload):
         return {
             "success": True,
             "accepted": True,
@@ -54,8 +56,6 @@ def dispatch_gripper_command(app, command_payload: GripperCommandPayload) -> Gri
             "error": None,
             "message": None,
         }
-
-    links = get_links(app)
 
     if not links.outbound.is_connected:
         return {

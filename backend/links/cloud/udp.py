@@ -11,10 +11,14 @@ from ...config import (
 )
 from ...runtime_settings import get_runtime_settings
 from ...state import MASTER_CLOUD_PUMP_TASK_KEY, MASTER_CLOUD_TRANSPORT_KEY
+from ...services.device_service import get_host_label
 from ..pose_protocol import (
     CLOUD_PEER_KEY,
+    MASTER_STREAM_READY_MESSAGE_TYPE,
+    MASTER_STREAM_PROTOCOL,
     SLAVE_SUBSCRIBE_MESSAGE_TYPE,
     SLAVE_UNSUBSCRIBE_MESSAGE_TYPE,
+    decorate_master_payload,
     handle_slave_control_message,
     remove_slave_peer,
 )
@@ -61,6 +65,7 @@ class CloudUdpClient:
         session_id: str,
         token: str = "",
         label: str = "",
+        client_label: str = "",
     ):
         self.host = host
         self.port = port
@@ -68,6 +73,7 @@ class CloudUdpClient:
         self.session_id = session_id
         self.token = token
         self.label = label or role
+        self.client_label = client_label or self.label
 
         self._queue: asyncio.Queue = asyncio.Queue()
         self._transport = None
@@ -100,6 +106,7 @@ class CloudUdpClient:
         packet = dict(payload)
         packet.setdefault("role", self.role)
         packet.setdefault("session_id", self.session_id)
+        packet.setdefault("client_label", self.client_label)
         if self.token:
             packet.setdefault("token", self.token)
         return json.dumps(packet, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -170,10 +177,23 @@ async def start_cloud_udp(app) -> None:
         session_id=get_relay_session_id(),
         token=get_relay_token(),
         label="TeleProgram",
+        client_label=get_host_label(),
     )
     await cloud_client.connect()
     app[MASTER_CLOUD_TRANSPORT_KEY] = cloud_client
     app[MASTER_CLOUD_PUMP_TASK_KEY] = asyncio.create_task(_udp_inbound_pump(app, cloud_client))
+    await cloud_client.send_payload(
+        decorate_master_payload(
+            app,
+            {
+                "type": MASTER_STREAM_READY_MESSAGE_TYPE,
+                "protocol": MASTER_STREAM_PROTOCOL,
+            },
+            link_name="cloud",
+            transport="udp",
+            add_master_send_time=False,
+        )
+    )
 
     settings = get_runtime_settings()
     _log(
