@@ -4,8 +4,6 @@ TIMING_FIELD_NAMES = (
     "detectTag_start_time",
     "detectTag_end_time",
     "client_send_time",
-    "client_clock_offset_ms",
-    "client_clock_rtt_ms",
     "master_receive_time",
     "master_send_time",
     "cloud_receive_time",

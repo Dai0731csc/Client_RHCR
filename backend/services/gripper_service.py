@@ -48,13 +48,25 @@ def _try_local_gripper_udp(app, command_payload: GripperCommandPayload) -> bool:
 def dispatch_gripper_command(app, command_payload: GripperCommandPayload) -> GripperDispatchResult:
     links = get_links(app)
 
-    if links.active_outbound == "local" and _try_local_gripper_udp(app, command_payload):
+    # local_udp / local_tcp: direct UDP to control server tool_listen (never relay).
+    if links.active_outbound == "local":
+        if _try_local_gripper_udp(app, command_payload):
+            return {
+                "success": True,
+                "accepted": True,
+                "status": 200,
+                "error": None,
+                "message": None,
+            }
         return {
-            "success": True,
-            "accepted": True,
-            "status": 200,
-            "error": None,
-            "message": None,
+            "success": False,
+            "accepted": False,
+            "error": "gripper_udp_unavailable",
+            "message": (
+                "Local gripper uses UDP to control server tool_listen "
+                f"(check gripper_service_port and that server tool service is running)"
+            ),
+            "status": 503,
         }
 
     if not links.outbound.is_connected:

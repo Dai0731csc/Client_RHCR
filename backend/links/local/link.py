@@ -9,7 +9,6 @@ from .pose import broadcast_pose as broadcast_local_udp_pose
 from .relay import (
     broadcast_local_relay_payload,
     close_local_relay,
-    send_local_relay_gripper_command,
     start_local_relay,
 )
 
@@ -25,6 +24,7 @@ class LocalLink:
         mode = get_runtime_settings().transport_mode
         if use_local_tcp_transport():
             await start_local_relay(app)
+            await start_local_gripper_udp(app)
         else:
             await start_local_master_udp(app)
             await start_local_gripper_udp(app)
@@ -34,6 +34,7 @@ class LocalLink:
     async def close(self, app) -> None:
         mode = self._started_mode
         if mode == "local_tcp":
+            await close_local_gripper_udp(app)
             await close_local_relay(app)
         elif mode == "local_udp":
             await close_local_gripper_udp(app)
@@ -56,8 +57,6 @@ class LocalLink:
         broadcast_local_udp_pose(app, payload, add_master_send_time=add_master_send_time)
 
     def send_gripper(self, app, command_payload: dict) -> bool:
-        if use_local_tcp_transport():
-            return send_local_relay_gripper_command(app, command_payload)
         return send_gripper_command(app, command_payload)
 
     @property

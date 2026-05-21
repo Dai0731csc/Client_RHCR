@@ -10,6 +10,7 @@ from ..state import (
     MASTER_LATEST_INITIAL_CALIBRATION_KEY,
 )
 from ..links import get_links
+from ..links.cloud.clock_skew import cloud_clock_skew_snapshot
 from ..utils import with_master_receive_time
 
 
@@ -68,7 +69,10 @@ async def ingest_apriltag_payload(app, payload: dict[str, Any], *, source="webso
     message_type = payload.get("type")
 
     if message_type == "detection_state":
-        detection_state_payload = cast(DetectionStatePayload, payload)
+        detection_state_payload = cast(
+            DetectionStatePayload,
+            {**payload, **cloud_clock_skew_snapshot(app)},
+        )
         app[MASTER_LATEST_DETECTION_STATE_KEY] = detection_state_payload
         _broadcast(app, detection_state_payload, add_master_send_time=True)
         _log(

@@ -113,7 +113,9 @@
 - 作用：切换夹爪开合状态
 - 使用前提：
   - 页面可直接点击，不依赖相机是否开启
-  - 后端需要已经连通有效的 gripper 转发链路
+  - 控制端 server 已 **Start session**，且工具/夹爪链路已启用
+  - **本地模式**（`local_udp` / `local_tcp`）：client 通过 **UDP** 发往控制端 `tool_listen`（默认 9002），与 `gripper_service_port` 一致；`local_tcp` 下姿态走 relay，夹爪不走 relay
+  - **云端模式**（`cloud_tcp` / `cloud_udp`）：经 cloud relay 的 `gripper_command` 转发
 - 点击结果：
   - 当前状态为 `closed` 时，点击发送 `open`
   - 当前状态为 `open` 时，点击发送 `close`

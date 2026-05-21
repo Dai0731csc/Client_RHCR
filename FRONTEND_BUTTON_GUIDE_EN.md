@@ -113,7 +113,9 @@ There are 6 main buttons at the top of the camera page. When camera calibration 
 - Purpose: toggle the gripper state
 - Prerequisites:
   - this button can be clicked even if the camera is not open
-  - the backend must already have a valid gripper forwarding path
+  - the control server session must be **started** and the tool/gripper path enabled
+  - **Local modes** (`local_udp` / `local_tcp`): the client sends **UDP** to the control `tool_listen` port (default 9002), matching `gripper_service_port`; in `local_tcp`, pose uses `/relay` but gripper does not
+  - **Cloud modes** (`cloud_tcp` / `cloud_udp`): commands go through the cloud relay as `gripper_command`
 - Result after clicking:
   - if the current state is `closed`, clicking sends `open`
   - if the current state is `open`, clicking sends `close`

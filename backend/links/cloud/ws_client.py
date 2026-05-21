@@ -9,7 +9,9 @@ from pathlib import Path
 
 import aiohttp
 
+from ...relay_clock_sync import RelayClockSyncClient
 from .protocol import (
+    RELAY_ACTION_CLOCK_SYNC_PUBLISH,
     RELAY_ACTION_ERROR,
     RELAY_ACTION_PEER_CONNECTED,
     RELAY_ACTION_PEER_DISCONNECTED,
@@ -128,6 +130,8 @@ class CloudWsClient:
         self._peer_connected = asyncio.Event()
         self._closed = False
         self._peer_connected_callbacks: list = []
+        self.skew_cloud_vs_master_ms: float | None = None
+        self.clock_sync_rtt_cloud_ms: float | None = None
 
     def on_peer_connected(self, callback):
         self._peer_connected_callbacks.append(callback)
@@ -152,6 +156,8 @@ class CloudWsClient:
         if self.is_connected:
             return
 
+        self.skew_cloud_vs_master_ms = None
+        self.clock_sync_rtt_cloud_ms = None
         self._closed = False
         self._refresh_connect_headers()
         if self._session is None or self._session.closed:
@@ -213,6 +219,8 @@ class CloudWsClient:
                     )
                 elif action == RELAY_ACTION_ERROR:
                     raise RuntimeError(envelope.get("message") or "relay registration failed")
+
+            await self._run_clock_sync_at_connect()
         except Exception as error:
             if self._ws is not None and not self._ws.closed:
                 await self._ws.close()
@@ -262,6 +270,45 @@ class CloudWsClient:
         self._reader_task = asyncio.create_task(
             self._reader_loop(),
             name=f"cloud-ws-reader-{self.label}",
+        )
+
+    async def _run_clock_sync_at_connect(self) -> None:
+        if self._ws is None:
+            return
+
+        sync_client = RelayClockSyncClient()
+        try:
+            result = await sync_client.sync_over_ws(
+                self._ws,
+                role=self.role,
+                session_id=self.session_id,
+            )
+        except Exception as error:
+            logger.warning("[%s] relay clock sync failed: %s", self.label, error)
+            return
+
+        self.skew_cloud_vs_master_ms = result.offset_ms
+        self.clock_sync_rtt_cloud_ms = result.rtt_ms
+        await self._ws.send_str(
+            json.dumps(
+                {
+                    "relay_envelope": RELAY_ENVELOPE_CONTROL,
+                    "relay_action": RELAY_ACTION_CLOCK_SYNC_PUBLISH,
+                    "role": self.role,
+                    "session_id": self.session_id,
+                    "skew_cloud_vs_master_ms": result.offset_ms,
+                    "clock_sync_rtt_cloud_ms": result.rtt_ms,
+                },
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+        )
+        logger.info(
+            "[%s] relay clock sync cloud_offset_ms=%.2f rtt_ms=%.2f samples=%s",
+            self.label,
+            result.offset_ms,
+            result.rtt_ms,
+            result.sample_count,
         )
 
     async def _reader_loop(self):
@@ -348,6 +395,8 @@ class CloudWsClient:
         self._closed = True
         self._connected.clear()
         self._peer_connected.clear()
+        self.skew_cloud_vs_master_ms = None
+        self.clock_sync_rtt_cloud_ms = None
 
         if self._reader_task is not None:
             self._reader_task.cancel()

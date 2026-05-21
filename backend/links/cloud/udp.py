@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from datetime import datetime
 
 from ...config import (
@@ -10,6 +11,7 @@ from ...config import (
     use_cloud_udp_transport,
 )
 from ...runtime_settings import get_runtime_settings
+from ...relay_clock_sync import RelayClockSyncClient
 from ...state import MASTER_CLOUD_PUMP_TASK_KEY, MASTER_CLOUD_TRANSPORT_KEY
 from ...services.device_service import get_host_label
 from ..pose_protocol import (
@@ -28,11 +30,20 @@ def _log(message: str) -> None:
     print(f"[TeleProgram] {message}")
 
 
+logger = logging.getLogger(__name__)
+
+CLOCK_SYNC_PING_TYPE = "clock_sync_ping"
+CLOCK_SYNC_ACK_TYPE = "clock_sync_ack"
+CLOCK_SYNC_PUBLISH_TYPE = "clock_sync_publish"
+
+
 class _CloudUdpProtocol(asyncio.DatagramProtocol):
-    def __init__(self, queue, on_transport_closed):
+    def __init__(self, queue, sync_queue, on_transport_closed):
         self.queue = queue
+        self.sync_queue = sync_queue
         self.on_transport_closed = on_transport_closed
         self.transport = None
+        self._sync_active = False
 
     def connection_made(self, transport):
         self.transport = transport
@@ -43,8 +54,12 @@ class _CloudUdpProtocol(asyncio.DatagramProtocol):
             payload = json.loads(data.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             return
-        if isinstance(payload, dict):
-            self.queue.put_nowait(payload)
+        if not isinstance(payload, dict):
+            return
+        if self._sync_active and payload.get("type") == CLOCK_SYNC_ACK_TYPE:
+            self.sync_queue.put_nowait(payload)
+            return
+        self.queue.put_nowait(payload)
 
     def error_received(self, exc):
         _log(f"[{datetime.now().strftime('%H:%M:%S')}] [cloud] udp error: {exc}")
@@ -76,9 +91,13 @@ class CloudUdpClient:
         self.client_label = client_label or self.label
 
         self._queue: asyncio.Queue = asyncio.Queue()
+        self._sync_queue: asyncio.Queue = asyncio.Queue()
+        self._protocol: _CloudUdpProtocol | None = None
         self._transport = None
         self._connected = asyncio.Event()
         self._closed = False
+        self.skew_cloud_vs_master_ms: float | None = None
+        self.clock_sync_rtt_cloud_ms: float | None = None
 
     @property
     def is_connected(self) -> bool:
@@ -88,14 +107,90 @@ class CloudUdpClient:
         if self.is_connected:
             return
 
+        self.skew_cloud_vs_master_ms = None
+        self.clock_sync_rtt_cloud_ms = None
         self._closed = False
         loop = asyncio.get_running_loop()
-        transport, _ = await loop.create_datagram_endpoint(
-            lambda: _CloudUdpProtocol(self._queue, self._handle_transport_closed),
+        transport, protocol = await loop.create_datagram_endpoint(
+            lambda: _CloudUdpProtocol(
+                self._queue,
+                self._sync_queue,
+                self._handle_transport_closed,
+            ),
             remote_addr=(self.host, self.port),
         )
         self._transport = transport
+        self._protocol = protocol
         self._connected.set()
+        await self._run_clock_sync_at_connect()
+
+    async def _run_clock_sync_at_connect(self) -> None:
+        if self._protocol is None:
+            return
+
+        sync_client = RelayClockSyncClient()
+        self._protocol._sync_active = True
+        try:
+
+            async def send_ping(*, seq: int, sender_send_time: str) -> None:
+                await self.send_payload(
+                    {
+                        "type": CLOCK_SYNC_PING_TYPE,
+                        "seq": seq,
+                        "sender_send_time": sender_send_time,
+                    }
+                )
+
+            async def wait_ack(*, seq: int, initiator_send_ms: float, initiator_send_mono: float):
+                import time
+
+                deadline = time.perf_counter() + sync_client.timeout_s
+                while time.perf_counter() < deadline:
+                    remaining = deadline - time.perf_counter()
+                    if remaining <= 0:
+                        return None
+                    try:
+                        envelope = await asyncio.wait_for(
+                            self._sync_queue.get(),
+                            timeout=remaining,
+                        )
+                    except asyncio.TimeoutError:
+                        return None
+                    return sync_client._sample_from_ack(
+                        envelope,
+                        seq=seq,
+                        initiator_send_ms=initiator_send_ms,
+                        initiator_send_mono=initiator_send_mono,
+                    )
+
+            result = await sync_client.sync_over_udp(
+                send_ping=send_ping,
+                wait_ack=wait_ack,
+                role=self.role,
+                session_id=self.session_id,
+            )
+        except Exception as error:
+            logger.warning("[%s] relay udp clock sync failed: %s", self.label, error)
+            return
+        finally:
+            self._protocol._sync_active = False
+
+        self.skew_cloud_vs_master_ms = result.offset_ms
+        self.clock_sync_rtt_cloud_ms = result.rtt_ms
+        await self.send_payload(
+            {
+                "type": CLOCK_SYNC_PUBLISH_TYPE,
+                "skew_cloud_vs_master_ms": result.offset_ms,
+                "clock_sync_rtt_cloud_ms": result.rtt_ms,
+            }
+        )
+        logger.info(
+            "[%s] relay udp clock sync cloud_offset_ms=%.2f rtt_ms=%.2f samples=%s",
+            self.label,
+            result.offset_ms,
+            result.rtt_ms,
+            result.sample_count,
+        )
 
     def _handle_transport_closed(self):
         self._connected.clear()
@@ -126,9 +221,12 @@ class CloudUdpClient:
     async def close(self):
         self._closed = True
         self._connected.clear()
+        self.skew_cloud_vs_master_ms = None
+        self.clock_sync_rtt_cloud_ms = None
         if self._transport is not None:
             self._transport.close()
         self._transport = None
+        self._protocol = None
         await self._queue.put({"type": "_stream_closed"})
 
 

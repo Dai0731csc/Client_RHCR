@@ -16,6 +16,8 @@ class CloudLink:
         self._started_mode: str | None = None
 
     async def start(self, app) -> None:
+        if self._started_mode is not None:
+            await self.close(app)
         self._app = app
         if use_cloud_tcp_transport():
             await start_cloud_tcp(app)

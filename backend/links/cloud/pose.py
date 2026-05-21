@@ -72,7 +72,6 @@ def broadcast_pose(
         transport=wire_transport,
         add_master_send_time=add_master_send_time,
     )
-
     if _is_udp_mode(started_mode):
         try:
             encoded_size = len(

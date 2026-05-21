@@ -79,7 +79,7 @@ On Windows, the certificate generation script depends on `cryptography`, which i
 - `backend/wiring/links.py`: builds links and starts the active outbound transport on startup
 - `backend/wiring/reconfigure.py`: hot-restarts outbound when settings change
 - `backend/links/frontend/`: browser ↔ backend (HTTP / WebSocket / WebRTC)
-- `backend/links/local/`: LAN UDP pose stream, local `/relay`, and gripper UDP
+- `backend/links/local/`: LAN UDP pose stream, local `/relay` (`local_tcp` pose only), gripper UDP
 - `backend/links/cloud/`: cloud relay (WebSocket or UDP)
 - `backend/links/pose_protocol.py`: shared raw-pose JSON protocol constants
 - `backend/routers/`: HTTP and WebSocket handlers (including `settings.py`)
@@ -133,7 +133,7 @@ On Windows, the certificate generation script depends on `cryptography`, which i
 
 - `POST /api/camera-calibration/validate`: validate one chessboard frame
 - `POST /api/camera-calibration`: upload frames and compute intrinsics
-- `POST /api/gripper/command`: gripper open/close (forwarded on the active outbound link)
+- `POST /api/gripper/command`: gripper open/close (see [Gripper](#gripper) below)
 
 ## Configuration (no environment variables)
 
@@ -168,6 +168,8 @@ Optional keys in the same file (defaults apply if omitted):
 "gripper_service_port": 9002
 ```
 
+`gripper_service_host` / `gripper_service_port` must match the control server `tool_listen_port` in `server/config/cloud.json` (default **9002**).
+
 ### Transport mode
 
 Select exactly one mode with `transport_modes` booleans:
@@ -200,10 +202,15 @@ Local topology (aligned with the control server):
 
 Supported transport modes:
 
-- `cloud_tcp`: outbound WebSocket to `wss://<cloud_host>:<cloud_tcp_port>/relay`
-- `cloud_udp`: outbound UDP to the cloud relay (`cloud_host` + `cloud_udp_port`)
-- `local_tcp`: expose `GET /relay` on this client; the control server connects as `slave` to `wss://<client-ip>:8000/relay`
-- `local_udp`: expose master UDP on `master_udp_port`; the control server subscribes as `slave`
+| Mode | Pose stream (master → control) | Gripper (`POST /api/gripper/command`) |
+|------|--------------------------------|----------------------------------------|
+| `cloud_tcp` | Outbound WSS to `wss://<cloud_host>:<cloud_tcp_port>/relay` | Same cloud relay (`gripper_command`) |
+| `cloud_udp` | Outbound UDP to cloud relay (`cloud_host` + `cloud_udp_port`) | Same cloud relay |
+| `local_tcp` | Expose `GET /relay`; control connects as `slave` to `wss://<client-ip>:8000/relay` | **Direct UDP** to control `tool_listen` (not relay) |
+| `local_udp` | Master UDP on `master_udp_port` (default 9001) | **Direct UDP** to control `tool_listen` |
+
+- `cloud_tcp` / `cloud_udp`: on connect, master runs `clock_sync` with the cloud relay and publishes `skew_cloud_vs_master_ms` via `clock_sync_publish`. The next `detection_state` forwarded to control includes `skew_client_vs_master_ms` (browser) and `skew_cloud_vs_master_ms` (master).
+- `local_tcp` / `local_udp`: **gripper never uses** `/relay`; only the pose path uses relay (`local_tcp`) or master UDP (`local_udp`).
 
 Control-side `slave` subscribe:
 
@@ -219,7 +226,24 @@ Unsubscribe:
 
 Master responses include `master_stream_ready`, `detection_state`, `initial_calibration`, and `apriltag_detections`.
 
-See [RAW_POSE_PROTOCOL.md](./RAW_POSE_PROTOCOL.md) for the full protocol.
+See [RAW_POSE_PROTOCOL.md](./RAW_POSE_PROTOCOL.md) for the full protocol (timing fields, clock skew, message shapes).
+
+### Clock skew (browser ↔ master)
+
+The camera page runs a one-shot clock sync with TeleProgram on load (`frontend/modules/time_sync.js`). When detection starts/stops, `detection_state` includes:
+
+- `skew_client_vs_master_ms` — browser wall clock minus master (`T_client - T_master`)
+- `clock_sync_rtt_client_ms` — optional RTT of that sync
+
+These fields are **not** repeated on every `apriltag_detections` line. In `cloud_*` modes, master↔cloud skew is attached to the same `detection_state` payload before forward (see `backend/links/cloud/clock_skew.py`).
+
+### Gripper
+
+1. Browser calls `POST /api/gripper/command` with `action`: `open` or `close`.
+2. **Local modes** (`local_udp`, `local_tcp`): UDP datagram to `gripper_service_host:gripper_service_port` on the control machine.
+3. **Cloud modes** (`cloud_tcp`, `cloud_udp`): `gripper_command` is sent through the active cloud relay; the control server executes it on the relay tool ingress path.
+
+Prerequisites on the control server: tool service enabled, robot session started, and matching UDP port if using local modes.
 
 ## Page notes
 
@@ -234,9 +258,12 @@ Default camera parameters are in `frontend/state/state.js`, including:
 
 For the frontend button and settings usage guide, see [FRONTEND_BUTTON_GUIDE.md](./FRONTEND_BUTTON_GUIDE.md) and [FRONTEND_BUTTON_GUIDE_EN.md](./FRONTEND_BUTTON_GUIDE_EN.md).
 
+Product introduction (browser): [Introduction index](../docs/Introduction/index.html) · [Communication](../docs/Introduction/Communication/end-to-end-communication.html) · [AprilTag](../docs/Introduction/AprilTag/apriltag-pose-detection.html) · [Control](../docs/Introduction/Control/pose-to-robot-control.html).
+
 ## Notes
 
 - WebRTC is only used for realtime uplink from the browser to this client
 - `master` does not compute deltas; it forwards raw poses
+- Gripper in **local** modes does not go through `/relay`; align `gripper_service_port` with the server
 - Browser ↔ client HTTPS uses `config/certificate/local/cert.pem` and `key.pem` by default
 - To regenerate local TLS files manually on Windows, run `powershell -ExecutionPolicy Bypass -File .\install\windows\generate_dev_cert.ps1 -PythonCommand python`

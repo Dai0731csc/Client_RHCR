@@ -13,7 +13,10 @@ from ..pose_protocol import (
     peer_label,
     remove_slave_peer,
 )
+from ...utils import current_utc_iso_timestamp
 from ..cloud.protocol import (
+    RELAY_ACTION_CLOCK_SYNC_ACK,
+    RELAY_ACTION_CLOCK_SYNC_PING,
     RELAY_ACTION_ERROR,
     RELAY_ACTION_REGISTER,
     RELAY_ACTION_REGISTERED,
@@ -162,7 +165,27 @@ async def handle_local_relay_websocket(request, ws, *, send_snapshot) -> None:
                 handle_slave_control_message(app, peer_key, payload, send_snapshot=send_snapshot)
             continue
 
-        if envelope.get("relay_action") != RELAY_ACTION_REGISTER:
+        action = envelope.get("relay_action")
+        if action == RELAY_ACTION_CLOCK_SYNC_PING:
+            master_receive_time = current_utc_iso_timestamp()
+            master_send_time = current_utc_iso_timestamp()
+            await ws.send_str(
+                json.dumps(
+                    {
+                        "relay_envelope": RELAY_ENVELOPE_CONTROL,
+                        "relay_action": RELAY_ACTION_CLOCK_SYNC_ACK,
+                        "seq": envelope.get("seq"),
+                        "cloud_receive_time": master_receive_time,
+                        "cloud_send_time": master_send_time,
+                        "received": envelope,
+                    },
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                )
+            )
+            continue
+
+        if action != RELAY_ACTION_REGISTER:
             continue
 
         if not use_local_tcp_transport():
@@ -239,6 +262,7 @@ async def handle_local_relay_websocket(request, ws, *, send_snapshot) -> None:
                 ensure_ascii=False,
             )
         )
+        send_local_relay_snapshot(app, peer_key)
 
     if registered:
         _log(

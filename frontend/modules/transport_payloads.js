@@ -13,8 +13,8 @@
     return {
       wallMs,
       wallTimeIso: toIsoString(wallMs),
-      clockOffsetMs: Number.isFinite(snapshot.offsetMs) ? snapshot.offsetMs : null,
-      clockRttMs: Number.isFinite(snapshot.rttMs) ? snapshot.rttMs : null,
+      skewClientVsMasterMs: Number.isFinite(snapshot.offsetMs) ? snapshot.offsetMs : null,
+      clockSyncRttClientMs: Number.isFinite(snapshot.rttMs) ? snapshot.rttMs : null,
     };
   }
 
@@ -26,8 +26,6 @@
       detectTag_start_time: timings.detectTagStartTime || null,
       detectTag_end_time: timings.detectTagEndTime || null,
       client_send_time: sendTimestamp.wallTimeIso,
-      client_clock_offset_ms: sendTimestamp.clockOffsetMs,
-      client_clock_rtt_ms: sendTimestamp.clockRttMs,
       client_seq: clientEmitSeq,
       detections,
     };
@@ -40,8 +38,6 @@
       tag_id: constants.CALIBRATION_TAG_ID,
       sample_count: constants.CALIBRATION_SAMPLE_COUNT,
       captured_at: capturedAt.wallTimeIso,
-      client_clock_offset_ms: capturedAt.clockOffsetMs,
-      client_clock_rtt_ms: capturedAt.clockRttMs,
       frame_size: {
         width: dom.video.videoWidth,
         height: dom.video.videoHeight,
@@ -57,8 +53,8 @@
       type: "detection_state",
       active,
       client_send_time: sendTimestamp.wallTimeIso,
-      client_clock_offset_ms: sendTimestamp.clockOffsetMs,
-      client_clock_rtt_ms: sendTimestamp.clockRttMs,
+      skew_client_vs_master_ms: sendTimestamp.skewClientVsMasterMs,
+      clock_sync_rtt_client_ms: sendTimestamp.clockSyncRttClientMs,
       nominal_frame_rate: active ? ns.getCurrentVideoSettings()?.frameRate ?? null : null,
       frame_size: active ? {
         width: dom.video.videoWidth,
