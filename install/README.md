@@ -80,6 +80,7 @@ Or, if you skipped `.venv` and want to use a specific interpreter:
 
 ## Notes
 
+- This repository contains only the client-side code for a remote hair-cutting robot. The cloud and server/control-side code is not public. Academic research use of this client project is allowed. For discussions about the full robot system or permission to control the remote robot, contact `shuai.li@oulu.fi` or `zhendai.huang@oulu.fi`.
 - `cloud.json` is not created or validated by these scripts. Place your config at `config/cloud.json` before the first run.
 - After the client is running, open `https://<host>:8000/settings` to change transport mode without restarting the process.
 - Use `--force-cert` to regenerate local relay TLS files.

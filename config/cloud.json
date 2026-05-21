@@ -1,5 +1,5 @@
 {
-  "cloud_host": "86.50.169.179",
+  "cloud_host": "",
   "cloud_tcp_port": 8443,
   "cloud_use_tls": true,
   "cloud_tls_verify": true,
