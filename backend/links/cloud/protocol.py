@@ -9,6 +9,8 @@ RELAY_ACTION_ERROR = "error"
 RELAY_ACTION_CLOCK_SYNC_PING = "clock_sync_ping"
 RELAY_ACTION_CLOCK_SYNC_ACK = "clock_sync_ack"
 RELAY_ACTION_CLOCK_SYNC_PUBLISH = "clock_sync_publish"
+RELAY_ACTION_FULL_CHAIN_TIME_SYNC_REQUEST = "full_chain_time_sync_request"
+RELAY_ACTION_FULL_CHAIN_TIME_SYNC_RESULT = "full_chain_time_sync_result"
 
 RELAY_ROLE_MASTER = "master"
 RELAY_ROLE_SLAVE = "slave"

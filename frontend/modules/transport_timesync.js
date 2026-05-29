@@ -75,11 +75,32 @@
     return true;
   }
 
+  async function syncFullChain(browserMaster) {
+    const response = await window.fetch(constants.FULL_CHAIN_TIME_SYNC_API_PATH, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        browser_master: browserMaster,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload.success) {
+      const failedHop = payload.failed_hop || "unknown";
+      const message = payload.message || "Full-chain time sync failed";
+      throw new Error(`${failedHop}: ${message}`);
+    }
+    return payload;
+  }
+
   function closeTimeSyncSocket() {
     state.timeSyncClient.rejectAllPending("Time sync channel closed");
   }
 
   transport.syncClock = syncClock;
+  transport.syncFullChain = syncFullChain;
   transport.reportTimeSyncResult = reportTimeSyncResult;
   transport.closeTimeSyncSocket = closeTimeSyncSocket;
 

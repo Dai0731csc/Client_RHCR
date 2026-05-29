@@ -20,6 +20,7 @@ from ...routers import (
     close_webrtc_peers,
     device_profile_by_ip_handler,
     device_profile_handler,
+    full_chain_time_sync_handler,
     gripper_command_handler,
     local_relay_websocket_handler,
     webrtc_config_handler,
@@ -52,6 +53,10 @@ class FrontendLink:
         )
         app.router.add_get(app_path(base_path, "/api/webrtc/config"), webrtc_config_handler)
         app.router.add_post(app_path(base_path, "/api/gripper/command"), gripper_command_handler)
+        app.router.add_post(
+            app_path(base_path, "/api/time-sync/full-chain"),
+            full_chain_time_sync_handler,
+        )
         app.router.add_post(
             app_path(base_path, "/api/camera-calibration/validate"),
             camera_calibration_validate_handler,
