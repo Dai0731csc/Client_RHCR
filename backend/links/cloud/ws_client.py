@@ -3,16 +3,21 @@ import json
 import logging
 import errno
 import ssl
+import time
+from datetime import datetime, timezone
 from typing import AsyncIterator, Optional
 from urllib.parse import urlsplit
 from pathlib import Path
 
 import aiohttp
 
-from ...relay_clock_sync import RelayClockSyncClient
+from ...relay_clock_sync import ClockSyncResult, RelayClockSyncClient, _median, parse_iso_ms
 from .protocol import (
+    RELAY_ACTION_CLOCK_SYNC_PING,
     RELAY_ACTION_CLOCK_SYNC_PUBLISH,
+    RELAY_ACTION_CLOCK_SYNC_ACK,
     RELAY_ACTION_ERROR,
+    RELAY_ACTION_FULL_CHAIN_TIME_SYNC_RESULT,
     RELAY_ACTION_PEER_CONNECTED,
     RELAY_ACTION_PEER_DISCONNECTED,
     RELAY_ACTION_REGISTER,
@@ -130,11 +135,18 @@ class CloudWsClient:
         self._peer_connected = asyncio.Event()
         self._closed = False
         self._peer_connected_callbacks: list = []
+        self._control_message_callbacks: list = []
+        self._clock_sync_waiters: dict[int, asyncio.Future] = {}
+        self._clock_sync_lock = asyncio.Lock()
+        self._clock_sync_seq = 0
         self.skew_cloud_vs_master_ms: float | None = None
         self.clock_sync_rtt_cloud_ms: float | None = None
 
     def on_peer_connected(self, callback):
         self._peer_connected_callbacks.append(callback)
+
+    def on_control_message(self, callback):
+        self._control_message_callbacks.append(callback)
 
     @property
     def is_connected(self) -> bool:
@@ -273,35 +285,33 @@ class CloudWsClient:
         )
 
     async def _run_clock_sync_at_connect(self) -> None:
-        if self._ws is None:
-            return
-
-        sync_client = RelayClockSyncClient()
         try:
+            await self.resync_master_cloud()
+        except Exception as error:
+            logger.warning("[%s] relay clock sync failed: %s", self.label, error)
+
+    async def resync_master_cloud(self, *, request_id: str | None = None) -> dict:
+        if self._ws is None:
+            raise RuntimeError("cloud relay websocket is not connected")
+        if self._reader_task is None or self._reader_task.done():
+            sync_client = RelayClockSyncClient()
             result = await sync_client.sync_over_ws(
                 self._ws,
                 role=self.role,
                 session_id=self.session_id,
             )
-        except Exception as error:
-            logger.warning("[%s] relay clock sync failed: %s", self.label, error)
-            return
+        else:
+            result = await self._resync_master_cloud_via_reader()
 
         self.skew_cloud_vs_master_ms = result.offset_ms
         self.clock_sync_rtt_cloud_ms = result.rtt_ms
-        await self._ws.send_str(
-            json.dumps(
-                {
-                    "relay_envelope": RELAY_ENVELOPE_CONTROL,
-                    "relay_action": RELAY_ACTION_CLOCK_SYNC_PUBLISH,
-                    "role": self.role,
-                    "session_id": self.session_id,
-                    "skew_cloud_vs_master_ms": result.offset_ms,
-                    "clock_sync_rtt_cloud_ms": result.rtt_ms,
-                },
-                separators=(",", ":"),
-                ensure_ascii=False,
-            )
+        await self.send_control_message(
+            RELAY_ACTION_CLOCK_SYNC_PUBLISH,
+            role=self.role,
+            session_id=self.session_id,
+            request_id=request_id,
+            skew_cloud_vs_master_ms=result.offset_ms,
+            clock_sync_rtt_cloud_ms=result.rtt_ms,
         )
         logger.info(
             "[%s] relay clock sync cloud_offset_ms=%.2f rtt_ms=%.2f samples=%s",
@@ -310,6 +320,86 @@ class CloudWsClient:
             result.rtt_ms,
             result.sample_count,
         )
+        return {
+            "offset_ms": result.offset_ms,
+            "rtt_ms": result.rtt_ms,
+            "sample_count": result.sample_count,
+        }
+
+    async def _resync_master_cloud_via_reader(self):
+        assert self._ws is not None
+
+        sync_client = RelayClockSyncClient()
+        samples: list[tuple[float, float, float]] = []
+
+        async with self._clock_sync_lock:
+            for _ in range(sync_client.sample_count):
+                seq = self._clock_sync_seq
+                self._clock_sync_seq += 1
+                initiator_send_wall = datetime.now(timezone.utc).isoformat(
+                    timespec="milliseconds"
+                ).replace("+00:00", "Z")
+                initiator_send_mono = time.perf_counter()
+                initiator_send_ms = parse_iso_ms(initiator_send_wall)
+                if initiator_send_ms is None:
+                    continue
+
+                future = asyncio.get_running_loop().create_future()
+                self._clock_sync_waiters[seq] = future
+                try:
+                    await self._ws.send_str(
+                        json.dumps(
+                            {
+                                "relay_envelope": RELAY_ENVELOPE_CONTROL,
+                                "relay_action": RELAY_ACTION_CLOCK_SYNC_PING,
+                                "seq": seq,
+                                "role": self.role,
+                                "session_id": self.session_id,
+                                "sender_send_time": initiator_send_wall,
+                            },
+                            separators=(",", ":"),
+                            ensure_ascii=False,
+                        )
+                    )
+                    envelope = await asyncio.wait_for(future, timeout=sync_client.timeout_s)
+                except asyncio.TimeoutError:
+                    continue
+                finally:
+                    self._clock_sync_waiters.pop(seq, None)
+
+                sample = sync_client.sample_from_ack(
+                    envelope,
+                    seq=seq,
+                    initiator_send_ms=initiator_send_ms,
+                    initiator_send_mono=initiator_send_mono,
+                )
+                if sample is None:
+                    continue
+                rtt_ms, offset_ms = sample
+                samples.append((rtt_ms, offset_ms, seq))
+                await asyncio.sleep(sync_client.sleep_s)
+
+        if not samples:
+            raise RuntimeError("relay clock sync failed: no successful samples")
+
+        best = sorted(samples, key=lambda item: item[0])[: min(5, len(samples))]
+        return ClockSyncResult(
+            offset_ms=_median([item[1] for item in best]),
+            rtt_ms=_median([item[0] for item in best]),
+            sample_count=len(samples),
+        )
+
+    def _handle_clock_sync_ack(self, envelope: dict) -> bool:
+        if envelope.get("relay_action") != RELAY_ACTION_CLOCK_SYNC_ACK:
+            return False
+        seq = envelope.get("seq")
+        if not isinstance(seq, int):
+            return False
+        future = self._clock_sync_waiters.get(seq)
+        if future is None or future.done():
+            return False
+        future.set_result(dict(envelope))
+        return True
 
     async def _reader_loop(self):
         assert self._ws is not None
@@ -326,6 +416,13 @@ class CloudWsClient:
                                 asyncio.create_task(callback())
                         elif action == RELAY_ACTION_PEER_DISCONNECTED:
                             self._peer_connected.clear()
+                        elif self._handle_clock_sync_ack(envelope):
+                            pass
+                        else:
+                            for callback in list(self._control_message_callbacks):
+                                outcome = callback(envelope)
+                                if asyncio.iscoroutine(outcome):
+                                    asyncio.create_task(outcome)
                         continue
 
                     if envelope.get("relay_envelope") == RELAY_ENVELOPE_DATA:
@@ -384,6 +481,21 @@ class CloudWsClient:
             raise RuntimeError("cloud relay is not connected")
         await self._ws.send_str(_encode_data_envelope(payload))
 
+    async def send_control_message(self, action: str, **fields):
+        if not self.is_connected:
+            raise RuntimeError("cloud relay is not connected")
+        await self._ws.send_str(
+            json.dumps(
+                {
+                    "relay_envelope": RELAY_ENVELOPE_CONTROL,
+                    "relay_action": action,
+                    **fields,
+                },
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+        )
+
     async def iter_payloads(self) -> AsyncIterator[dict]:
         while True:
             payload = await self._queue.get()
@@ -397,6 +509,10 @@ class CloudWsClient:
         self._peer_connected.clear()
         self.skew_cloud_vs_master_ms = None
         self.clock_sync_rtt_cloud_ms = None
+        for future in self._clock_sync_waiters.values():
+            if not future.done():
+                future.set_exception(RuntimeError("cloud relay websocket closed"))
+        self._clock_sync_waiters.clear()
 
         if self._reader_task is not None:
             self._reader_task.cancel()

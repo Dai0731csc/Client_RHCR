@@ -61,7 +61,7 @@ class RelayClockSyncClient:
         *,
         ping_action: str = "clock_sync_ping",
         ack_action: str = "clock_sync_ack",
-        sample_count: int = 8,
+        sample_count: int = 20,
         sleep_s: float = 0.06,
         timeout_s: float = 2.0,
     ):
@@ -181,7 +181,7 @@ class RelayClockSyncClient:
         return ClockSyncResult(
             offset_ms=_median([item[1] for item in best]),
             rtt_ms=_median([item[0] for item in best]),
-            sample_count=len(best),
+            sample_count=len(samples),
         )
 
     def _sample_from_ack(
@@ -215,6 +215,21 @@ class RelayClockSyncClient:
         )
         rtt_ms = (initiator_recv_mono - initiator_send_mono) * 1000.0
         return (rtt_ms, offset_ms)
+
+    def sample_from_ack(
+        self,
+        envelope: dict,
+        *,
+        seq: int,
+        initiator_send_ms: float,
+        initiator_send_mono: float,
+    ) -> tuple[float, float] | None:
+        return self._sample_from_ack(
+            envelope,
+            seq=seq,
+            initiator_send_ms=initiator_send_ms,
+            initiator_send_mono=initiator_send_mono,
+        )
 
     async def sync_over_udp(
         self,
@@ -259,5 +274,5 @@ class RelayClockSyncClient:
         return ClockSyncResult(
             offset_ms=_median([item[1] for item in best]),
             rtt_ms=_median([item[0] for item in best]),
-            sample_count=len(best),
+            sample_count=len(samples),
         )
