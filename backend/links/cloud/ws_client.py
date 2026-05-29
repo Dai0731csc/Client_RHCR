@@ -386,7 +386,7 @@ class CloudWsClient:
         return ClockSyncResult(
             offset_ms=_median([item[1] for item in best]),
             rtt_ms=_median([item[0] for item in best]),
-            sample_count=len(best),
+            sample_count=len(samples),
         )
 
     def _handle_clock_sync_ack(self, envelope: dict) -> bool:

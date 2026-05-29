@@ -61,7 +61,7 @@ class RelayClockSyncClient:
         *,
         ping_action: str = "clock_sync_ping",
         ack_action: str = "clock_sync_ack",
-        sample_count: int = 8,
+        sample_count: int = 20,
         sleep_s: float = 0.06,
         timeout_s: float = 2.0,
     ):
@@ -181,7 +181,7 @@ class RelayClockSyncClient:
         return ClockSyncResult(
             offset_ms=_median([item[1] for item in best]),
             rtt_ms=_median([item[0] for item in best]),
-            sample_count=len(best),
+            sample_count=len(samples),
         )
 
     def _sample_from_ack(
@@ -274,5 +274,5 @@ class RelayClockSyncClient:
         return ClockSyncResult(
             offset_ms=_median([item[1] for item in best]),
             rtt_ms=_median([item[0] for item in best]),
-            sample_count=len(best),
+            sample_count=len(samples),
         )
