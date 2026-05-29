@@ -87,6 +87,7 @@
     GRIPPER_COMMAND_API_PATH: withBasePath("/api/gripper/command"),
     WEBRTC_RETRY_INITIAL_DELAY_MS: 3000,
     WEBRTC_RETRY_MAX_DELAY_MS: 60000,
+    FULL_CHAIN_TIME_SYNC_API_PATH: withBasePath("/api/time-sync/full-chain"),
   };
 
   function getCurrentVideoSettings() {

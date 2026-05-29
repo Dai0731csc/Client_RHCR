@@ -216,6 +216,21 @@ class RelayClockSyncClient:
         rtt_ms = (initiator_recv_mono - initiator_send_mono) * 1000.0
         return (rtt_ms, offset_ms)
 
+    def sample_from_ack(
+        self,
+        envelope: dict,
+        *,
+        seq: int,
+        initiator_send_ms: float,
+        initiator_send_mono: float,
+    ) -> tuple[float, float] | None:
+        return self._sample_from_ack(
+            envelope,
+            seq=seq,
+            initiator_send_ms=initiator_send_ms,
+            initiator_send_mono=initiator_send_mono,
+        )
+
     async def sync_over_udp(
         self,
         *,

@@ -174,28 +174,20 @@
     ns.setTimeSyncUI(true);
 
     try {
-      const syncResult = await ns.transport.syncClock();
+      const browserSyncResult = await ns.transport.syncClock();
+      const syncResult = await ns.transport.syncFullChain({
+        offset_ms: browserSyncResult.offsetMs,
+        rtt_ms: browserSyncResult.rttMs,
+        sample_count: browserSyncResult.sampleCount,
+        transport: browserSyncResult.transportLabel || "unknown",
+      });
       state.lastTimeSyncResult = {
         ...syncResult,
         completedAt: new Date().toISOString(),
       };
-      void ns.transport.reportTimeSyncResult({
-        status: "success",
-        sample_count: syncResult.sampleCount,
-        offset_ms: syncResult.offsetMs,
-        rtt_ms: syncResult.rttMs,
-        transport: syncResult.transportLabel || "unknown",
-        completed_at: state.lastTimeSyncResult.completedAt,
-      });
       console.info("Time sync completed:", syncResult);
     } catch (error) {
       state.lastTimeSyncResult = null;
-      void ns.transport.reportTimeSyncResult({
-        status: "failed",
-        transport: state.realtimeDataChannel?.readyState === "open" ? "webrtc:apriltag" : "websocket:apriltag",
-        message: error?.message || String(error),
-        completed_at: new Date().toISOString(),
-      }).catch(() => {});
       console.warn("Time sync failed:", error);
     } finally {
       ns.setTimeSyncUI(false);
