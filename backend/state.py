@@ -10,6 +10,8 @@ MASTER_UDP_SEQUENCE_KEY = "master_udp_sequence"
 MASTER_CLOUD_TRANSPORT_KEY = "master_cloud_transport"
 MASTER_CLOUD_PUMP_TASK_KEY = "master_cloud_pump_task"
 MASTER_LOCAL_RELAY_PEERS_KEY = "master_local_relay_peers"
+MASTER_LOCAL_RELAY_CONTROL_KEY = "master_local_relay_control"
+MASTER_LOCAL_UDP_CONTROL_KEY = "master_local_udp_control"
 WEBRTC_PEER_CONNECTIONS_KEY = "webrtc_peer_connections"
 FULL_CHAIN_TIME_SYNC_CAPTURE_SNAPSHOT_KEY = "full_chain_time_sync_capture_snapshot"
 FULL_CHAIN_TIME_SYNC_COORDINATOR_KEY = "full_chain_time_sync_coordinator"
@@ -27,6 +29,8 @@ APP_STATE_DEFAULTS = {
     MASTER_CLOUD_TRANSPORT_KEY: None,
     MASTER_CLOUD_PUMP_TASK_KEY: None,
     MASTER_LOCAL_RELAY_PEERS_KEY: dict,
+    MASTER_LOCAL_RELAY_CONTROL_KEY: None,
+    MASTER_LOCAL_UDP_CONTROL_KEY: None,
     WEBRTC_PEER_CONNECTIONS_KEY: set,
     FULL_CHAIN_TIME_SYNC_CAPTURE_SNAPSHOT_KEY: None,
     FULL_CHAIN_TIME_SYNC_COORDINATOR_KEY: None,
