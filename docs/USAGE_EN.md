@@ -1,5 +1,7 @@
 # Client Usage Guide
 
+**Production:** deploy Client, Cloud, and Server on separate machines with `cloud_tcp` or `cloud_udp` (see Application repo `docs/DEPLOYMENT.md`). Use `local_*` modes for development only.
+
 This document explains the basic usage of the `client` side of the remote hair-cutting robot project. It focuses on starting the service, opening the frontend pages, and following the normal operation flow.
 
 ## Scope

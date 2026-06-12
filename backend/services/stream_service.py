@@ -1,9 +1,11 @@
 from datetime import datetime
 from typing import Any, Mapping, cast
 
-from scipy.spatial.transform import Rotation as R
-
 from ..models import AprilTagDetectionsPayload, DetectionStatePayload, InitialCalibrationPayload
+from ..tag_camera_pose_log import (
+    TAG_CAMERA_FRAME_LEGEND,
+    format_tag_camera_detection_summary,
+)
 from ..state import (
     MASTER_LATEST_APRILTAG_PAYLOAD_KEY,
     MASTER_LATEST_DETECTION_STATE_KEY,
@@ -17,6 +19,9 @@ from ..utils import with_master_receive_time
 
 def _log(message):
     print(f"[TeleProgram] {message}")
+
+
+_tag_camera_log_legend_printed = False
 
 
 def _broadcast(app, payload, *, add_master_send_time=False):
@@ -108,18 +113,21 @@ async def ingest_apriltag_payload(app, payload: dict[str, Any], *, source="webso
     app[MASTER_LATEST_APRILTAG_PAYLOAD_KEY] = master_payload
     _broadcast(app, master_payload, add_master_send_time=True)
 
+    global _tag_camera_log_legend_printed
+
     detections = master_payload.get("detections") or []
-    detection_summaries = []
+    if detections and not _tag_camera_log_legend_printed:
+        _log(TAG_CAMERA_FRAME_LEGEND)
+        _tag_camera_log_legend_printed = True
+
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    _log(
+        f"[{timestamp}] apriltag packet ({source}, count={len(detections)})"
+    )
     for detection in detections:
         detection_tag_id = get_detection_tag_id(detection)
         pose = detection.get("pose") or {}
-        detection_summaries.append(
-            f"tag_id={detection_tag_id} "
-            f"t={format_numeric_vector(pose.get('t'))} "
-            f"euler_xyz_deg={format_numeric_vector(R.from_matrix(pose.get('R')).as_euler('xyz', degrees=True)) if pose.get('R') else 'n/a'}"
+        _log(
+            f"  {format_tag_camera_detection_summary(tag_id=detection_tag_id, pose=pose)}"
         )
-    _log(
-        f"[{datetime.now().strftime('%H:%M:%S')}] apriltag packet received "
-        f"({source}, count={len(detections)}, detections={detection_summaries})"
-    )
     return master_payload

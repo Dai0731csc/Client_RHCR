@@ -85,10 +85,6 @@ def _value_path(raw_value) -> str:
     return str(path.resolve())
 
 
-def _config_path(key: str) -> str:
-    return _value_path(_cloud_top(key))
-
-
 def _default_tls_ca_path_for_scope(scope: str) -> str:
     if scope == "cloud":
         candidates = (

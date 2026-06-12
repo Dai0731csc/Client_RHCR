@@ -8,6 +8,12 @@ This repository contains only the **client-side code** for the remote hair-cutti
 
 Anyone may use this project for academic research. If you are specifically interested in the hair-cutting robot system and would like to discuss further collaboration or request permission to control the remote robot, contact `shuai.li@oulu.fi` or `zhendai.huang@oulu.fi`.
 
+## Deployment
+
+- **Production:** `cloud_tcp` or `cloud_udp` on a machine separate from Cloud and Server. See [../docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md).
+- **Local dev:** `local_tcp` / `local_udp` (default in repo `config/cloud.json` is often `local_udp` for same-machine debugging).
+- Tests and integration scripts: [../testing/README.md](../testing/README.md) only (not under `client/`).
+
 ## Documentation
 
 - Install overview: [install/README.md](./install/README.md)

@@ -1,20 +1,10 @@
 {
-  "cloud_host": "",
+  "cloud_host": "86.50.169.179",
   "cloud_tcp_port": 8443,
   "cloud_use_tls": true,
   "cloud_tls_verify": true,
   "cloud_tls_ca_file": "",
   "cloud_udp_port": 8440,
-  "transport_modes": {
-    "local_tcp": true,
-    "cloud_tcp": false,
-    "cloud_udp": false,
-    "local_udp": false
-  },
-  "local_topologies": {
-    "same_machine": true,
-    "same_lan": false
-  },
   "local_lan_host": "",
   "local_tls_cert_file": "certificate/local/cert.pem",
   "local_tls_key_file": "certificate/local/key.pem",
@@ -33,5 +23,15 @@
     "turn_urls": "",
     "turn_username": "",
     "turn_password": ""
+  },
+  "transport_modes": {
+    "local_udp": true,
+    "cloud_udp": false,
+    "cloud_tcp": false,
+    "local_tcp": false
+  },
+  "local_topologies": {
+    "same_machine": true,
+    "same_lan": false
   }
 }

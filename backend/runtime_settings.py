@@ -79,10 +79,6 @@ class ClientRuntimeSettings:
         return int(self._data.get("cloud_tcp_port") or 8443)
 
     @property
-    def cloud_udp_port(self) -> int:
-        return int(self._data.get("cloud_udp_port") or 8440)
-
-    @property
     def cloud_use_tls(self) -> bool:
         return _as_bool(self._data.get("cloud_use_tls"), default=True)
 

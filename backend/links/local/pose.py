@@ -37,6 +37,9 @@ def send_pose_packet(app, peer_key, payload: dict, *, add_master_send_time: bool
     return True
 
 
+_NO_SLAVE_PEER_WARNED: set[str] = set()
+
+
 def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) -> None:
     packet = decorate_master_payload(
         app,
@@ -56,7 +59,18 @@ def broadcast_pose(app, payload: dict, *, add_master_send_time: bool = False) ->
         )
         return
 
-    for peer_key in list(app[MASTER_SLAVE_PEERS_KEY]):
+    peers = list(app[MASTER_SLAVE_PEERS_KEY])
+    if not peers:
+        message_type = str(payload.get("type") or "")
+        if message_type and message_type not in _NO_SLAVE_PEER_WARNED:
+            _NO_SLAVE_PEER_WARNED.add(message_type)
+            log_pose(
+                f"[{datetime.now().strftime('%H:%M:%S')}] [local] no control-server UDP peer; "
+                f"dropping type={message_type!r} (start server session + connect transport first)"
+            )
+        return
+
+    for peer_key in peers:
         try:
             transport.sendto(encoded, peer_key)
         except ValueError as error:

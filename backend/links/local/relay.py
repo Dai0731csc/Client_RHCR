@@ -171,10 +171,6 @@ def broadcast_local_relay_payload(app, payload: dict, *, add_master_send_time: b
     return True
 
 
-def send_local_relay_gripper_command(app, command_payload: dict) -> bool:
-    return broadcast_local_relay_payload(app, command_payload, add_master_send_time=False)
-
-
 def send_local_relay_snapshot(app, peer_key) -> None:
     ws = app[MASTER_LOCAL_RELAY_PEERS_KEY].get(peer_key)
     if ws is None or ws.closed:

@@ -1,5 +1,7 @@
 # Client 使用说明
 
+生产环境：Client、Cloud、Server 分机部署，传输使用 `cloud_tcp` 或 `cloud_udp`（见 Application 仓库 `docs/DEPLOYMENT.md`）。`local_*` 仅本地开发。
+
 本文说明远程理发机器人项目 `client` 端的基本使用方式。内容聚焦于启动服务、访问页面、完成前端操作，以及进入正常工作流程前的准备步骤。
 
 ## 说明范围

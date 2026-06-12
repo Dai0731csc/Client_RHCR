@@ -243,7 +243,6 @@
       }
 
       const tagCameraSamples = samples.map((sample) => ns.math.invertPose(sample.pose));
-      // const tagCameraSamples = samples.map((sample) => sample.pose);
       const meanPose = {
         t: ns.math.averageTranslations(tagCameraSamples.map((sample) => sample.t)),
         R: ns.math.averageRotations(tagCameraSamples.map((sample) => sample.R)),

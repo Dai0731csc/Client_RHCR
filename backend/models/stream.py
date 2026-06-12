@@ -1,4 +1,4 @@
-from typing import Any, Literal, TypedDict
+from typing import Literal, TypedDict
 
 
 class TagPose(TypedDict):
@@ -67,8 +67,3 @@ class AprilTagDetectionsPayload(TypedDict, total=False):
     cloud_send_time: str | None
     control_socket_receive_time: str | None
     master_seq: int | None
-
-
-class StreamPayloadEnvelope(TypedDict, total=False):
-    type: str
-    payload: dict[str, Any]

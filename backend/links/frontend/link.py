@@ -7,6 +7,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from ...config import PAGES_DIR, STATIC_DIR
 from ...routers import (
+    apriltag_refine_pose_handler,
     apriltag_publish_websocket_handler,
     app_path,
     build_template_context,
@@ -64,6 +65,10 @@ class FrontendLink:
         app.router.add_post(
             app_path(base_path, "/api/camera-calibration"),
             camera_calibration_handler,
+        )
+        app.router.add_post(
+            app_path(base_path, "/api/apriltag/refine-pose"),
+            apriltag_refine_pose_handler,
         )
         app.router.add_static(app_path(base_path, "/static/"), STATIC_DIR)
 

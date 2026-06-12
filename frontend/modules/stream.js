@@ -47,7 +47,6 @@
     return {
       ...detection,
       pose: ns.math.invertPose(detection.pose),
-      // pose: detection.pose,
       pose_frame: "tag_camera",
     };
   }
@@ -256,14 +255,32 @@
     state.nextDetectionPacketVersion += 1;
   }
 
+  async function refineDetectionsWithDistortion(detections) {
+    if (!ns.apriltagDistortion?.refineDetectionPoses) {
+      return detections;
+    }
+    return ns.apriltagDistortion.refineDetectionPoses(detections, {
+      intrinsicsRecord: state.currentIntrinsicsRecord,
+      tagSizeM: constants.DEFAULT_TAG_SIZE_METERS,
+      outputFrame: "tag_camera",
+    });
+  }
+
   async function runDetectionLoop() {
     while (state.detectionLoopActive && state.stream) {
       const loopStartMs = Date.now();
       const detectTagStart = ns.transport.createTimestampInfo();
-      const detections = await ns.detection.runDetectionFrame();
+      const rawDetections = await ns.detection.runDetectionFrame();
+      const detections = await refineDetectionsWithDistortion(rawDetections);
       renderDetectionOverlay(detections);
       const detectTagEnd = ns.transport.createTimestampInfo();
-      publishLatestDetectionPacket(ns.detection.toTagCameraDetections(detections), {
+      const payloadDetections = detections.map((detection) => {
+        if (detection.pose_frame === "tag_camera") {
+          return detection;
+        }
+        return ns.detection.toTagCameraDetections([detection])[0];
+      });
+      publishLatestDetectionPacket(payloadDetections, {
         detectTagStartTime: detectTagStart.wallTimeIso,
         detectTagEndTime: detectTagEnd.wallTimeIso,
       });

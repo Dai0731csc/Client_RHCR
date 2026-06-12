@@ -48,10 +48,6 @@ def ensure_host_region() -> str:
     return _host_region
 
 
-def get_host_region() -> str:
-    return _host_region or UNKNOWN_REGION
-
-
 def build_cloud_connect_headers() -> dict[str, str]:
     region = ensure_host_region()
     if region and region != UNKNOWN_REGION:
