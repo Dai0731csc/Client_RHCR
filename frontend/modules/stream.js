@@ -255,26 +255,14 @@
     state.nextDetectionPacketVersion += 1;
   }
 
-  async function refineDetectionsWithDistortion(detections) {
-    if (!ns.apriltagDistortion?.refineDetectionPoses) {
-      return detections;
-    }
-    return ns.apriltagDistortion.refineDetectionPoses(detections, {
-      intrinsicsRecord: state.currentIntrinsicsRecord,
-      tagSizeM: constants.DEFAULT_TAG_SIZE_METERS,
-      outputFrame: "tag_camera",
-    });
-  }
-
   async function runDetectionLoop() {
     while (state.detectionLoopActive && state.stream) {
       const loopStartMs = Date.now();
       const detectTagStart = ns.transport.createTimestampInfo();
       const rawDetections = await ns.detection.runDetectionFrame();
-      const detections = await refineDetectionsWithDistortion(rawDetections);
-      renderDetectionOverlay(detections);
+      renderDetectionOverlay(rawDetections);
       const detectTagEnd = ns.transport.createTimestampInfo();
-      const payloadDetections = detections.map((detection) => {
+      const payloadDetections = rawDetections.map((detection) => {
         if (detection.pose_frame === "tag_camera") {
           return detection;
         }

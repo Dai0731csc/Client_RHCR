@@ -103,6 +103,7 @@ There are 6 main buttons at the top of the camera page. When camera calibration 
   - if this button is disabled, it usually means camera calibration has not been completed yet
 - Result after clicking:
   - when started, the frontend continuously detects AprilTags and draws green overlays and distance labels
+  - each detection iteration publishes one `apriltag_detections` payload; if no tag is found in that iteration, the payload is sent with `detections=[]`
   - detection results are sent through `WebRTC DataChannel` when available, with fallback to `WebSocket`
   - when stopped, the detection loop ends, the overlay is cleared, and `detection_state=false` is reported to the backend
 - Recommended usage: only start continuous detection after camera calibration has been completed

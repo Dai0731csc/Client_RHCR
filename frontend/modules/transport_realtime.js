@@ -99,7 +99,7 @@
     }
   }
 
-  function waitForIceGatheringComplete(peerConnection, timeoutMs = 5000) {
+  function waitForIceGatheringComplete(peerConnection, timeoutMs = 10000) {
     if (peerConnection.iceGatheringState === "complete") {
       return Promise.resolve();
     }
@@ -289,7 +289,7 @@
     });
     const dataChannel = peerConnection.createDataChannel("apriltag", {
       ordered: false,
-      maxRetransmits: 0,
+      maxRetransmits: 5,
     });
 
     state.realtimePeerConnection = peerConnection;

@@ -103,6 +103,7 @@
   - 如果按钮不可点，通常表示还没有完成相机标定
 - 点击结果：
   - 开始后，前端持续检测 AprilTag，并在画面上绘制绿色框和距离标签
+  - 每一轮检测都会发布一条 `apriltag_detections`；如果这一轮没有识别到标签，则会发送 `detections=[]`
   - 检测结果会优先通过 `WebRTC DataChannel` 上报，失败时回退到 `WebSocket`
   - 停止后，检测循环结束，覆盖层清空，并向后端上报 `detection_state=false`
 - 推荐用法：完成相机标定后，再开启连续检测

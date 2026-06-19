@@ -25,10 +25,10 @@
     "turn_password": ""
   },
   "transport_modes": {
-    "local_udp": true,
+    "local_udp": false,
+    "local_tcp": true,
     "cloud_udp": false,
-    "cloud_tcp": false,
-    "local_tcp": false
+    "cloud_tcp": false
   },
   "local_topologies": {
     "same_machine": true,

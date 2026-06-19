@@ -23,3 +23,4 @@ Anyone may use this project for academic research. If you are specifically inter
 - Usage guide (EN): [docs/USAGE_EN.md](./docs/USAGE_EN.md)
 - Frontend button guide (CN): [docs/FRONTEND_BUTTON_GUIDE_CN.md](./docs/FRONTEND_BUTTON_GUIDE_CN.md)
 - Frontend button guide (EN): [docs/FRONTEND_BUTTON_GUIDE_EN.md](./docs/FRONTEND_BUTTON_GUIDE_EN.md)
+- Raw pose stream protocol: [../docs/RAW_POSE_PROTOCOL.md](../docs/RAW_POSE_PROTOCOL.md)

@@ -97,6 +97,12 @@ The camera page is used for frontend capture, calibration, and continuous detect
 - `Start continuous detection`: continuously detect and upload AprilTag data
 - `Open gripper / Close gripper`: send gripper open/close commands
 
+Current continuous-detection semantics:
+
+- each detection iteration produces one `apriltag_detections` payload
+- if no tag is detected in that iteration, the payload is still sent with `detections=[]`
+- the frontend prefers `WebRTC DataChannel`; if the realtime channel is unavailable, it falls back to `WebSocket`
+
 ## 7. Typical Scenarios
 
 ### First Use on a New Device
@@ -142,6 +148,10 @@ Check:
 ### Continuous detection cannot be started
 
 This usually means valid camera intrinsics are not available yet. Complete camera calibration first.
+
+### Continuous detection is running, but some frames contain no detected tag
+
+This is a valid case. The frontend still reports that iteration as `apriltag_detections`, but with `detections=[]`. The control side records it as an empty detection packet instead of a valid pose-control frame.
 
 ### Cloud link is unavailable
 

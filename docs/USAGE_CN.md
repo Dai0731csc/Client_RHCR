@@ -97,6 +97,12 @@ Windows 下可使用：
 - `Start continuous detection`：持续检测并上报 AprilTag 数据
 - `Open gripper / Close gripper`：发送夹爪开合命令
 
+连续检测阶段的当前语义：
+
+- 每轮检测都会生成一条 `apriltag_detections`
+- 如果这一轮没有识别到标签，仍然会上报该包，但 `detections=[]`
+- 前端优先走 `WebRTC DataChannel`；若实时通道不可用，则回退到 `WebSocket`
+
 ## 7. 典型使用场景
 
 ### 首次在新设备上使用
@@ -142,6 +148,10 @@ Windows 下可使用：
 ### 无法开始连续检测
 
 通常表示尚未具备可用的相机标定内参。请先完成相机标定。
+
+### 连续检测开启了，但某些帧没有识别到标签
+
+这是允许的正常情况。前端仍会上报该轮检测结果，只是 `detections=[]`，控制端会把它记录为“空检测包”，而不是有效位姿控制帧。
 
 ### 云端链路不可用
 

@@ -32,7 +32,7 @@ def describe_webrtc_error(error):
     return str(error) or error.__class__.__name__
 
 
-async def wait_for_ice_gathering_complete(peer_connection, timeout_s=5.0):
+async def wait_for_ice_gathering_complete(peer_connection, timeout_s=10.0):
     if peer_connection.iceGatheringState == "complete":
         return
 
