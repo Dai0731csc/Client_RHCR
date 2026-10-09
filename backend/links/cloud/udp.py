@@ -24,6 +24,7 @@ from ..pose_protocol import (
     handle_slave_control_message,
     remove_slave_peer,
 )
+from .protocol import RELAY_ACTION_FULL_CHAIN_TIME_SYNC_RESULT
 
 
 def _log(message: str) -> None:
@@ -95,13 +96,22 @@ class CloudUdpClient:
         self._protocol: _CloudUdpProtocol | None = None
         self._transport = None
         self._connected = asyncio.Event()
+        self._peer_connected = asyncio.Event()
         self._closed = False
+        self._control_message_callbacks: list = []
         self.skew_cloud_vs_master_ms: float | None = None
         self.clock_sync_rtt_cloud_ms: float | None = None
 
     @property
     def is_connected(self) -> bool:
         return self._connected.is_set() and self._transport is not None
+
+    @property
+    def peer_is_connected(self) -> bool:
+        return self._peer_connected.is_set()
+
+    def on_control_message(self, callback):
+        self._control_message_callbacks.append(callback)
 
     async def connect(self):
         if self.is_connected:
@@ -110,6 +120,7 @@ class CloudUdpClient:
         self.skew_cloud_vs_master_ms = None
         self.clock_sync_rtt_cloud_ms = None
         self._closed = False
+        self._peer_connected.clear()
         loop = asyncio.get_running_loop()
         transport, protocol = await loop.create_datagram_endpoint(
             lambda: _CloudUdpProtocol(
@@ -124,11 +135,61 @@ class CloudUdpClient:
         self._connected.set()
         await self._run_clock_sync_at_connect()
 
+    async def resync_master_cloud(self, *, request_id: str | None = None) -> dict:
+        del request_id
+        result = await self._sync_master_cloud()
+        self.skew_cloud_vs_master_ms = result.offset_ms
+        self.clock_sync_rtt_cloud_ms = result.rtt_ms
+        await self.send_payload(
+            {
+                "type": CLOCK_SYNC_PUBLISH_TYPE,
+                "skew_cloud_vs_master_ms": result.offset_ms,
+                "clock_sync_rtt_cloud_ms": result.rtt_ms,
+            }
+        )
+        logger.info(
+            "[%s] relay udp clock sync cloud_offset_ms=%.2f rtt_ms=%.2f samples=%s",
+            self.label,
+            result.offset_ms,
+            result.rtt_ms,
+            result.sample_count,
+        )
+        return {
+            "offset_ms": result.offset_ms,
+            "rtt_ms": result.rtt_ms,
+            "sample_count": result.sample_count,
+        }
+
     async def _run_clock_sync_at_connect(self) -> None:
         if self._protocol is None:
             return
 
+        try:
+            result = await self._sync_master_cloud()
+        except Exception as error:
+            logger.warning("[%s] relay udp clock sync failed: %s", self.label, error)
+            return
+
+        self.skew_cloud_vs_master_ms = result.offset_ms
+        self.clock_sync_rtt_cloud_ms = result.rtt_ms
+        await self.send_payload(
+            {
+                "type": CLOCK_SYNC_PUBLISH_TYPE,
+                "skew_cloud_vs_master_ms": result.offset_ms,
+                "clock_sync_rtt_cloud_ms": result.rtt_ms,
+            }
+        )
+        logger.info(
+            "[%s] relay udp clock sync cloud_offset_ms=%.2f rtt_ms=%.2f samples=%s",
+            self.label,
+            result.offset_ms,
+            result.rtt_ms,
+            result.sample_count,
+        )
+
+    async def _sync_master_cloud(self):
         sync_client = RelayClockSyncClient()
+        assert self._protocol is not None
         self._protocol._sync_active = True
         try:
 
@@ -163,34 +224,14 @@ class CloudUdpClient:
                         initiator_send_mono=initiator_send_mono,
                     )
 
-            result = await sync_client.sync_over_udp(
+            return await sync_client.sync_over_udp(
                 send_ping=send_ping,
                 wait_ack=wait_ack,
                 role=self.role,
                 session_id=self.session_id,
             )
-        except Exception as error:
-            logger.warning("[%s] relay udp clock sync failed: %s", self.label, error)
-            return
         finally:
             self._protocol._sync_active = False
-
-        self.skew_cloud_vs_master_ms = result.offset_ms
-        self.clock_sync_rtt_cloud_ms = result.rtt_ms
-        await self.send_payload(
-            {
-                "type": CLOCK_SYNC_PUBLISH_TYPE,
-                "skew_cloud_vs_master_ms": result.offset_ms,
-                "clock_sync_rtt_cloud_ms": result.rtt_ms,
-            }
-        )
-        logger.info(
-            "[%s] relay udp clock sync cloud_offset_ms=%.2f rtt_ms=%.2f samples=%s",
-            self.label,
-            result.offset_ms,
-            result.rtt_ms,
-            result.sample_count,
-        )
 
     def _handle_transport_closed(self):
         self._connected.clear()
@@ -211,6 +252,9 @@ class CloudUdpClient:
             raise RuntimeError("cloud udp is not connected")
         self._transport.sendto(self._encode_payload(payload))
 
+    async def send_control_message(self, action: str, **fields):
+        await self.send_payload({"type": action, **fields})
+
     async def iter_payloads(self):
         while True:
             payload = await self._queue.get()
@@ -221,6 +265,7 @@ class CloudUdpClient:
     async def close(self):
         self._closed = True
         self._connected.clear()
+        self._peer_connected.clear()
         self.skew_cloud_vs_master_ms = None
         self.clock_sync_rtt_cloud_ms = None
         if self._transport is not None:
@@ -228,6 +273,21 @@ class CloudUdpClient:
         self._transport = None
         self._protocol = None
         await self._queue.put({"type": "_stream_closed"})
+
+    def mark_peer_connected(self) -> None:
+        self._peer_connected.set()
+
+    def mark_peer_disconnected(self) -> None:
+        self._peer_connected.clear()
+
+    def dispatch_control_message(self, payload: dict) -> bool:
+        if payload.get("type") != RELAY_ACTION_FULL_CHAIN_TIME_SYNC_RESULT:
+            return False
+        for callback in list(self._control_message_callbacks):
+            outcome = callback(dict(payload))
+            if asyncio.iscoroutine(outcome):
+                asyncio.create_task(outcome)
+        return True
 
 
 async def _udp_inbound_pump(app, cloud_client: CloudUdpClient) -> None:
@@ -246,9 +306,11 @@ async def _udp_inbound_pump(app, cloud_client: CloudUdpClient) -> None:
                 )
                 continue
             if message_type == SLAVE_UNSUBSCRIBE_MESSAGE_TYPE:
+                cloud_client.mark_peer_disconnected()
                 remove_slave_peer(app, CLOUD_PEER_KEY, reason="unsubscribe")
                 continue
             if message_type == SLAVE_SUBSCRIBE_MESSAGE_TYPE:
+                cloud_client.mark_peer_connected()
                 handle_slave_control_message(
                     app,
                     CLOUD_PEER_KEY,
@@ -256,9 +318,12 @@ async def _udp_inbound_pump(app, cloud_client: CloudUdpClient) -> None:
                     send_snapshot=_send_snapshot,
                 )
                 continue
+            if cloud_client.dispatch_control_message(payload):
+                continue
     except asyncio.CancelledError:
         raise
     finally:
+        cloud_client.mark_peer_disconnected()
         remove_slave_peer(app, CLOUD_PEER_KEY, reason="cloud_udp_closed")
 
 

@@ -4,12 +4,84 @@ from datetime import datetime
 
 from ...config import get_master_udp_host, get_master_udp_port
 from ...state import (
+    MASTER_LOCAL_UDP_CONTROL_KEY,
     MASTER_SLAVE_PEERS_KEY,
     MASTER_UDP_PROTOCOL_KEY,
     MASTER_UDP_TRANSPORT_KEY,
 )
+from ...utils import current_utc_iso_timestamp
 from ..pose_protocol import handle_slave_control_message, log_pose, peer_label
-from .pose import send_pose_packet
+from .pose import encode_udp_payload, send_pose_packet
+
+CLOCK_SYNC_PING_TYPE = "clock_sync_ping"
+CLOCK_SYNC_ACK_TYPE = "clock_sync_ack"
+FULL_CHAIN_TIME_SYNC_REQUEST_TYPE = "full_chain_time_sync_request"
+FULL_CHAIN_TIME_SYNC_RESULT_TYPE = "full_chain_time_sync_result"
+
+
+class LocalMasterUdpControl:
+    def __init__(self, app):
+        self._app = app
+        self._callbacks: list = []
+
+    @property
+    def is_connected(self) -> bool:
+        return self.peer_is_connected
+
+    @property
+    def peer_is_connected(self) -> bool:
+        return bool(self._app[MASTER_SLAVE_PEERS_KEY])
+
+    def on_control_message(self, callback):
+        self._callbacks.append(callback)
+
+    async def send_control_message(self, action: str, **fields):
+        peer_key = self._latest_peer_key()
+        transport = self._app.get(MASTER_UDP_TRANSPORT_KEY)
+        if peer_key is None or transport is None:
+            raise RuntimeError("local udp peer is not connected")
+        payload = {"type": action, **fields}
+        transport.sendto(encode_udp_payload(payload), peer_key)
+
+    def handle_payload(self, payload: dict, addr) -> bool:
+        message_type = payload.get("type")
+        if message_type == CLOCK_SYNC_PING_TYPE:
+            self._send_clock_sync_ack(addr, payload)
+            return True
+        if message_type != FULL_CHAIN_TIME_SYNC_RESULT_TYPE:
+            return False
+        for callback in list(self._callbacks):
+            outcome = callback(dict(payload))
+            if asyncio.iscoroutine(outcome):
+                asyncio.create_task(outcome)
+        return True
+
+    def _latest_peer_key(self):
+        peers = list(self._app[MASTER_SLAVE_PEERS_KEY])
+        if not peers:
+            return None
+        return peers[-1]
+
+    def _send_clock_sync_ack(self, addr, ping: dict) -> None:
+        transport = self._app.get(MASTER_UDP_TRANSPORT_KEY)
+        if transport is None:
+            return
+        master_receive_time = current_utc_iso_timestamp()
+        master_send_time = current_utc_iso_timestamp()
+        transport.sendto(
+            json.dumps(
+                {
+                    "type": CLOCK_SYNC_ACK_TYPE,
+                    "seq": ping.get("seq"),
+                    "cloud_receive_time": master_receive_time,
+                    "cloud_send_time": master_send_time,
+                    "received": ping,
+                },
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8"),
+            addr,
+        )
 
 
 def send_master_snapshot(app, peer_key) -> None:
@@ -48,6 +120,12 @@ class LocalMasterUdpProtocol(asyncio.DatagramProtocol):
                 f"{peer_label(addr)}"
             )
             return
+        if not isinstance(payload, dict):
+            return
+
+        control_plane = self.app.get(MASTER_LOCAL_UDP_CONTROL_KEY)
+        if control_plane is not None and control_plane.handle_payload(payload, addr):
+            return
 
         handle_slave_control_message(
             self.app,
@@ -70,6 +148,7 @@ class LocalMasterUdpProtocol(asyncio.DatagramProtocol):
 
 
 async def start_local_master_udp(app) -> None:
+    app[MASTER_LOCAL_UDP_CONTROL_KEY] = LocalMasterUdpControl(app)
     loop = asyncio.get_running_loop()
     transport, protocol = await loop.create_datagram_endpoint(
         lambda: LocalMasterUdpProtocol(app),
@@ -90,3 +169,4 @@ async def close_local_master_udp(app) -> None:
     app[MASTER_UDP_TRANSPORT_KEY] = None
     app[MASTER_UDP_PROTOCOL_KEY] = None
     app[MASTER_SLAVE_PEERS_KEY].clear()
+    app[MASTER_LOCAL_UDP_CONTROL_KEY] = None

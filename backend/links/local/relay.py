@@ -5,7 +5,7 @@ from datetime import datetime
 from aiohttp import web
 
 from ...config import get_relay_session_id, get_relay_token, use_local_tcp_transport
-from ...state import MASTER_LOCAL_RELAY_PEERS_KEY
+from ...state import MASTER_LOCAL_RELAY_CONTROL_KEY, MASTER_LOCAL_RELAY_PEERS_KEY
 from ..pose_protocol import (
     build_master_snapshot_payloads,
     decorate_master_payload,
@@ -18,6 +18,8 @@ from ..cloud.protocol import (
     RELAY_ACTION_CLOCK_SYNC_ACK,
     RELAY_ACTION_CLOCK_SYNC_PING,
     RELAY_ACTION_ERROR,
+    RELAY_ACTION_FULL_CHAIN_TIME_SYNC_REQUEST,
+    RELAY_ACTION_FULL_CHAIN_TIME_SYNC_RESULT,
     RELAY_ACTION_REGISTER,
     RELAY_ACTION_REGISTERED,
     RELAY_ENVELOPE_CONTROL,
@@ -28,6 +30,62 @@ from ..cloud.protocol import (
 
 def _log(message: str) -> None:
     print(f"[TeleProgram] {message}")
+
+
+class LocalRelayControl:
+    def __init__(self, app):
+        self._app = app
+        self._callbacks: list = []
+
+    @property
+    def is_connected(self) -> bool:
+        return self.peer_is_connected
+
+    @property
+    def peer_is_connected(self) -> bool:
+        return any(not ws.closed for ws in self._app[MASTER_LOCAL_RELAY_PEERS_KEY].values())
+
+    def on_control_message(self, callback):
+        self._callbacks.append(callback)
+
+    async def send_control_message(self, action: str, **fields):
+        ws = self._latest_peer_websocket()
+        if ws is None:
+            raise RuntimeError("local relay peer is not connected")
+        await ws.send_str(
+            json.dumps(
+                {
+                    "relay_envelope": RELAY_ENVELOPE_CONTROL,
+                    "relay_action": action,
+                    **fields,
+                },
+                separators=(",", ":"),
+                ensure_ascii=False,
+            )
+        )
+
+    def handle_control_message(self, envelope: dict) -> bool:
+        action = envelope.get("relay_action")
+        if action not in {
+            RELAY_ACTION_FULL_CHAIN_TIME_SYNC_REQUEST,
+            RELAY_ACTION_FULL_CHAIN_TIME_SYNC_RESULT,
+        }:
+            return False
+        for callback in list(self._callbacks):
+            outcome = callback(dict(envelope))
+            if asyncio.iscoroutine(outcome):
+                asyncio.create_task(outcome)
+        return True
+
+    def _latest_peer_websocket(self):
+        peers = [
+            ws
+            for _peer_key, ws in self._app[MASTER_LOCAL_RELAY_PEERS_KEY].items()
+            if not ws.closed
+        ]
+        if not peers:
+            return None
+        return peers[-1]
 
 
 def _peer_key_from_request(request):
@@ -51,11 +109,13 @@ def unregister_local_relay_peer(app, peer_key, *, reason: str) -> None:
 
 async def start_local_relay(app) -> None:
     app[MASTER_LOCAL_RELAY_PEERS_KEY].clear()
+    app[MASTER_LOCAL_RELAY_CONTROL_KEY] = LocalRelayControl(app)
 
 
 async def close_local_relay(app) -> None:
     peers = list(app[MASTER_LOCAL_RELAY_PEERS_KEY].items())
     app[MASTER_LOCAL_RELAY_PEERS_KEY].clear()
+    app[MASTER_LOCAL_RELAY_CONTROL_KEY] = None
     for peer_key, ws in peers:
         remove_slave_peer(app, peer_key, reason="shutdown")
         if not ws.closed:
@@ -145,6 +205,7 @@ async def handle_local_relay_websocket(request, ws, *, send_snapshot) -> None:
     app = request.app
     peer_key = _peer_key_from_request(request)
     registered = False
+    control_plane = app.get(MASTER_LOCAL_RELAY_CONTROL_KEY)
 
     async for msg in ws:
         if msg.type != web.WSMsgType.TEXT:
@@ -186,6 +247,8 @@ async def handle_local_relay_websocket(request, ws, *, send_snapshot) -> None:
             continue
 
         if action != RELAY_ACTION_REGISTER:
+            if registered and control_plane is not None and control_plane.handle_control_message(envelope):
+                continue
             continue
 
         if not use_local_tcp_transport():
