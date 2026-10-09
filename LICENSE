@@ -1,0 +1,150 @@
+Client_RHCR Academic Noncommercial License v1.0
+
+Copyright (c) 2026 the Client_RHCR copyright holders.
+All rights reserved except as expressly granted below.
+
+1. Definitions and scope
+
+"Software" means the Client_RHCR source code, associated documentation,
+and other original materials expressly made available under this License.
+"Licensor" means each copyright holder granting rights under this License,
+solely with respect to the material and rights that holder controls.
+"You" means the individual or entity exercising rights under this License.
+"Modified Software" means modifications or derivative works of the Software.
+
+This License applies only to materials designated as covered by it. It does
+not replace licenses for third-party libraries, assets, or other materials.
+Papers and third-party research materials retain their own licenses.
+
+2. Free academic and educational license
+
+Subject to all conditions below, Licensor grants You a worldwide,
+nonexclusive, royalty-free copyright license to use, reproduce, study,
+and modify the Software solely for noncommercial academic research and
+educational purposes. This includes scientific experimentation,
+reproduction of published results, teaching, and student research.
+
+Eligible users are researchers, educators, and students at educational or
+nonprofit research institutions, and independent researchers conducting
+noncommercial academic research. This grant does not authorize work
+performed for a commercial entity's business purposes.
+
+You may distribute the Software and Modified Software free of charge to
+other eligible users solely for the permitted purposes, subject to
+Section 3. No payment or individual permission is required for uses that
+satisfy this License. All rights not expressly granted are reserved.
+
+3. Redistribution and modifications
+
+Every distributed copy of the Software or Modified Software, whether in
+source or executable form, must include this License, the applicable
+copyright notices, and the citation information in Section 5. For an
+executable distribution, include these materials in the accompanying
+documentation or other materials provided to recipients.
+
+You must identify material modifications and their authors without
+removing original attribution. Your contributions to Modified Software
+must be made available under this same License; You may not remove its
+academic-use, noncommercial-use, or publication-citation conditions.
+Recipients obtain rights in Licensor's material directly under this License.
+
+These conditions do not require You to publish private modifications or
+license independent works merely because they use the Software. Research
+papers are not subject to this License, but Section 5 applies to publications
+reporting research arising from use of the Software or Modified Software.
+
+4. Commercial use and externally funded research
+
+This License does not grant rights for commercial use. Commercial use
+requires a separate written license from the relevant copyright holders.
+Commercial use includes use for business-related research or development,
+proprietary product development, incorporation into commercial products,
+commercial deployment, paid services, or work performed to deliver a
+commercial product, service, or proprietary business capability to a client.
+Publishing a paper does not by itself make such commercial work permitted.
+
+External or commercial funding alone does not disqualify academic research.
+Research at an educational or nonprofit research institution is permitted
+when it is conducted for noncommercial academic purposes, the researchers
+retain the right to publish their results, and the Software is not used to
+provide a commercial product, service, or proprietary business deliverable.
+Subsequent commercial use requires separate written authorization.
+
+For commercial licensing inquiries, contact:
+  zhendai.huang@oulu.fi
+  shuai.li@oulu.fi
+
+Contacting these addresses does not itself grant permission. Any commercial
+license must be issued by a person or entity authorized by the relevant
+copyright holders.
+
+5. Required scholarly citation
+
+As an express condition of the rights granted in Section 2, any scholarly
+publication reporting research arising from Your use of the Software or
+Modified Software must include a conventional bibliographic citation to:
+
+Z. Huang, A. Vilkki, J. Huang, B. Liao, C. Luo, L. Angrisani, and S. Li,
+"TeleHairing: A Teleoperation Baseline for Robotic Haircutting,"
+arXiv preprint arXiv:2610.07096, 2026.
+DOI: https://doi.org/10.48550/arXiv.2610.07096
+
+Identify Client_RHCR in the methods, software description, or acknowledgments
+as appropriate. A repository link or general acknowledgment alone does not
+replace the required bibliographic citation. Where a publication format has
+no reference list, provide the paper title and DOI in an acknowledgment,
+footnote, or accompanying public research description.
+
+This condition applies to journal and conference papers, preprints,
+theses, dissertations, and published research reports. It does not require
+a citation for downloading, studying, teaching with, or privately testing
+the Software when no research publication results. It does not grant
+Licensor approval rights over publications or require coauthorship.
+
+6. No endorsement or access authorization
+
+This License grants no trademark rights and no permission to imply that
+Licensor, the authors, or their institutions endorse Your work.
+It grants no access to private servers, control systems, or physical robots.
+Separate authorization is required for access to those resources.
+No patent license is granted by this License.
+
+7. Warranty disclaimer and limitation of liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE IS PROVIDED
+"AS IS," WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+LICENSOR HAS NO OBLIGATION TO PROVIDE SUPPORT, MAINTENANCE, OR UPDATES.
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, LICENSOR AND CONTRIBUTORS
+WILL NOT BE LIABLE FOR ANY DAMAGES ARISING FROM THE SOFTWARE OR ITS USE,
+INCLUDING DIRECT, INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES,
+LOSS OF DATA OR PROFITS, OR PERSONAL INJURY, UNDER ANY THEORY OF LIABILITY,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. LIABILITY THAT CANNOT
+LAWFULLY BE EXCLUDED OR LIMITED REMAINS UNAFFECTED.
+
+8. Termination and correction
+
+Your rights under this License terminate automatically if You violate its
+conditions. For a first violation, rights are reinstated if You correct it
+within 30 days after becoming aware of it and take reasonable steps to
+remedy prior noncompliance. Citation corrections must use the applicable
+publisher or repository correction process where available.
+
+If You cannot correct a violation within that period, or commit a subsequent
+violation, reinstatement requires written authorization from Licensor.
+Termination does not terminate the rights of compliant downstream recipients
+who independently receive rights under this License. Sections concerning
+reserved rights, attribution, citation, disclaimers, and liability remain
+applicable to prior acts and copies retained after termination.
+
+9. Statutory rights and independent licenses
+
+This License does not restrict uses that applicable law permits without
+Licensor's authorization. It does not override a separate written agreement
+between You and the relevant copyright holders. If a provision is held
+unenforceable, the remaining provisions remain effective to the extent
+permitted by applicable law.
+
+This is a project-specific academic noncommercial software license.
+It is not the UCLA Academic Software License or a PolyForm license.
